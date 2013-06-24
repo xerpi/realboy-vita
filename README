@@ -1,0 +1,62 @@
+RealBoy is a free, fast, yet accurate, Game Boy/Game Boy Color emulator, with technical as well as educational goals.
+Technically, it aims for the following:
+
+1) Accuracy. Perhaps the most important technical goal, as seen in the best closed-sourced emulators, such as KiGB and BGB, and some free emulators, such as Gambatte and MESS.
+2) Speed. Show that it is possible to implement a very fast emulator without sacrificing accuracy.
+3) Feature-rich. Implement advanced features such as a flexible internal debugger.
+
+Besides the technical goals, RealBoy pretends to serve as an education tools; it includes a set of documentation files describing the design and implementation issues found while developing the emulator. This can be found on RealBoy's official website (realboyemulator.wordpress.com). We hope the documentation can be useful to individuals that would like to learn about how emulators work in general, and the type of problems you face when implementing a fully-functional emulator project.
+
+
+Features
+--------
+RealBoy is a work in progress; current features include:
+
+- Accuracy: Pass various test ROMS designed to evaluate the accuracy of a Game Boy emulator, including: CPU Instructions, Instructions' Timings and Memory Access Timings.
+
+- Speed: For 64-bit versions of the x86 architecture (a.k.a x86_64, a.k.a amd64), an Assembly Language version of the emulator's core is provided, significantly faster than the C version.
+
+- Support for MBC1, MBC3 and MBC5.
+- Support for RTC (Real Time Clock) in MBC3.
+- Support for executing the original boot ROMS (files not included for legal reasons).
+- Internal Debugger: Basic functionality such as adding breakpoints, printing registers, etc.
+- FPS: User control over framerate (default is 60fps).
+- Sound: Implemented channels 1, 2 and 4.
+- Video: Scaling to 2x, 3x and 4x, with or without fullscreen.
+- Video: Antialiasing.
+- RealBoy Internals: Design and implementation documentation.
+
+
+Compiling the sources
+---------------------
+RealBoy is distributed with Autotools-derived scripts, so compiling is just a matter of the well-known ./configure && make process. There are some RealBoy-specific arguments you can pass to configure:
+
+./configure --disable-asm (Force compiling the C instead of Assembly code for x86_64 architectures. By default, the configure script chooses the Assembly sources automatically on these processors.)
+
+./configure --enable-cli (Enable Command-Line Interface. When compiled with this option, and executed without arguments, RealBoy will present a CLI instead of displaying 'help' and exiting.)
+
+
+System requirements
+-------------------
+
+- POSIX-compliant Operating System (Linux, *BSD, Mac OS X, Solaris, etc)
+- SDL library (Generally installed from your packet manager, or download and compile from source from http://www.libsdl.org)
+
+Key combinations during emulation
+---------------------------------
+- Key 1: Video scale 1x
+- Key 2: Video scale 2x
+- Key 3: Video scale 3x
+- Key 4: Video scale 4x
+- Key 5: Enable/disable antialiasing
+- Key 6: Enable/disable fullscreen
+- Key 7: Stop execution and launch GDDB
+
+Contact
+-------
+Any question, suggestion or bug report can be sent to Sergio.G.DelReal@gmail.com. People are welcome to join the project and help meet the goals established at the beginning of this README.
+
+
+Special Thanks
+--------------
+Mathieu Peponas from gngb for kindly answering an email, gngb, MESS, VisualBoyAdvance, SDL, SDL_gfx, GNU GCC, GNU Autotools, Mom, Dad and my dog Chocolate.
