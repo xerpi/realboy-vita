@@ -201,17 +201,15 @@ do_vram_dma(Uint8 val)
 static void
 do_oam_dma(unsigned int val)
 {
-	void *ptr_addr_ptrs = (void *)&addr_sp_ptrs;
+	long *ptr_addr_ptrs = &addr_sp_ptrs;
 	char *ptr_src;
 	char *ptr_dst;
 	int val_offs, i;
 
 	val &= 0xff;
 	val <<= 8; // scale
-	val_offs = (val>>9)&0x78; // offset to pointers
-	ptr_addr_ptrs += val_offs; // get addr_sp_ptrs
-	ptr_addr_ptrs = (void *)(*(long *)ptr_addr_ptrs);
-	ptr_src = (char *)((long)ptr_addr_ptrs+val);
+	val_offs = (val>>12); // offset to pointers
+	ptr_src = (char *)(ptr_addr_ptrs[val_offs]+val);
 	ptr_dst = addr_sp + 0xfe00; // OAM
 
 	/* Copy stream (XXX copy word at a time) */
