@@ -40,6 +40,8 @@ mbc5_rom_bank_low(int val)
 {
 	gb_cart.cart_curom_bank &= 0x100; // clear lower 8 bits
 	gb_cart.cart_curom_bank |= (val&0xff); // copy new lower 8 bits
+	if (gb_cart.cart_curom_bank == 0)
+		gb_cart.cart_curom_bank = 1;
 
 	mbc_rom_remap();
 }
@@ -53,6 +55,8 @@ mbc5_rom_bank_high(int val)
 	gb_cart.cart_curom_bank &= 0xff; // clear 9th bit
 	gb_cart.cart_curom_bank |= (val&0x100); // copy new 9th bit
 
+	if (gb_cart.cart_curom_bank == 0)
+		gb_cart.cart_curom_bank = 1;
 	mbc_rom_remap();
 }
 

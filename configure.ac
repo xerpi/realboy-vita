@@ -32,7 +32,7 @@ AC_PROG_CC
 #AM_PROG_CC_C_O
 
 # Checks for libraries.
-AC_CHECK_LIB(SDL, SDL_Init,, AC_MSG_ERROR(missing SDL library))
+AC_CHECK_LIB(SDL, SDL_Init,, AC_MSG_ERROR(missing SDL library; please install from packet manager))
 
 # Checks for header files.
 AC_CHECK_HEADERS([fcntl.h stdlib.h string.h sys/time.h termios.h unistd.h SDL/SDL.h])

@@ -337,8 +337,8 @@ read_sound_reg()
 void
 write_sound_reg(Uint8 reg, Uint8 val)
 {
-	static tmp=0;
-	tmp++;
+
+	SDL_LockAudio();
 
 	switch (reg) {
 		case 0x10:
@@ -502,6 +502,8 @@ write_sound_reg(Uint8 reg, Uint8 val)
 		default:
 			addr_sp[reg+0xff00]=val;
 	}
+
+	SDL_UnlockAudio();
 }
 void
 update_stream(void *userdata,Uint8 *stream,int snd_len)
@@ -563,7 +565,7 @@ snd_start()
 {
 	SDL_Init(SDL_INIT_AUDIO);
 	desired.freq = 44100;
-	desired.samples = 1024;
+	desired.samples = 2048;
 	desired.format = AUDIO_S16SYS;
 	desired.channels = 2;
 	desired.callback = update_stream;

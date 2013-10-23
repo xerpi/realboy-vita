@@ -140,7 +140,6 @@ main(int argc, char *argv[])
 				return 0;
 			case 'd':
 				gbddb=1;
-				printf("%d\n", gbddb);
 				break;
 			default:
 				break;

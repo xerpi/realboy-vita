@@ -113,10 +113,10 @@ do_remap_wram(Uint8 val)
 	long *ptr_addr_sp = (long *)&addr_sp_ptrs;
 	int temp_val = val&0x7;
 
-	if (temp_val==0)
-		ptr_addr_sp[0xd] = (long)(gb_cart.cart_wram_bank-0xd000);
+	if (temp_val==0 || temp_val==1)
+		ptr_addr_sp[0xd] = (long)(addr_sp);
 	else
-		ptr_addr_sp[0xd] = (long)(((gb_cart.cart_wram_bank-0x1000)+(temp_val<<12))-0xd000);
+		ptr_addr_sp[0xd] = (long)((gb_cart.cart_wram_bank+((val-2)*4096))-0xd000);
 }
 
 static void
