@@ -133,7 +133,7 @@ do_remap_vram(Uint8 val)
 static void
 cgb_speed_switch(Uint8 val)
 {
-	addr_sp[0xff4d] = val&0x81;
+	addr_sp[0xff4d] = (addr_sp[0xff4d]&0x80) | (val&0x1);
 }
 
 /*

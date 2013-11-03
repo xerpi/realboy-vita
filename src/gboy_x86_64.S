@@ -234,6 +234,8 @@ proc_ints:
 	addq (%rdi), %r13 # new PC
 4:
 end_ints:
+	movq cpu_cur_mode, %rcx # if current mode is CGB, timer and divider stuff are 2 times faster
+	shrq %cl, %r14 # double ticks if necessary
 	movq (%r13), %r12 # copy opcode for next instruction
 lcd_refrshing:
 	testq $0x80, LCDC_REG+addr_sp # is LCD on?
@@ -550,6 +552,8 @@ mem_delayed:
 	jmp last_run
 end_execute_precise:
 lcd_refrshing_del:
+	movq cpu_cur_mode, %rcx # if current mode is CGB, timer and divider stuff are 2 times faster
+	shrq %cl, %r14 # double ticks if necessary
 	testq $0x80, LCDC_REG+addr_sp # is LCD on?
 	jz proc_ints_del # no
 1:
@@ -3316,12 +3320,12 @@ op_nop:
 op_stop:
 	incq %r13 # new PC
 	testq $1, (SPD_REG+addr_sp) # change speed?
-	jz 1f
+	jz 2f
 	notb (SPD_REG+addr_sp)
 	andb $0x80, (SPD_REG+addr_sp)
 	notq cpu_cur_mode
 	andq $1, cpu_cur_mode
-1:
+2:
 	movq $regs_sets, %rdi # pointer to registers
 	incq PC(%rdi)
 	ret

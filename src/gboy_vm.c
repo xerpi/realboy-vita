@@ -106,6 +106,7 @@ gboy_reset()
 	addr_sp[IR_REG] = 1;
 	addr_sp[LCDC_REG] = 0x91;
 	if (type == 1) {
+		addr_sp[0xff4d] = 0;
 		addr_sp[0xff68] = 0xc0;
 		addr_sp[0xff6a] = 0xc0;
 		addr_sp[0xff55] = 0xff;
