@@ -5586,7 +5586,7 @@ lcd_refrsh()
 					hbln_dma_dst += 16;
 					hbln_dma_src += 16;
 					if (--hbln_dma < 0)
-						hbln_dma=0, addr_sp[VRAM_DMA]=0xff;
+						hdma_on=0, addr_sp[VRAM_DMA]=0xff;
 				}
 				addr_sp[LY_REG]++;
 				addr_sp[LCDS_REG] &= ~LY_LYC_FLAG;
