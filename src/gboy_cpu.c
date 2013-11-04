@@ -5528,7 +5528,6 @@ timer_divider_update()
 	Sint8 ticks;
 	Uint8 div_tmp;
 
-	//cur_tcks <<= cpu_cur_mode;
 	ticks = (Sint8)cur_tcks;
 	div_tmp = div_ctrl;
 	if (tac_on&1)
@@ -5564,6 +5563,7 @@ void
 lcd_refrsh()
 {
 	static Uint8 hdma_tmp;
+	cur_tcks >>= cpu_cur_mode;
 
 	switch (addr_sp[LCDS_REG]&0x3) {
 		case 0:

@@ -1,3 +1,13 @@
+2013-11-3	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
+Version 0.1.1
+	* gboy_x86_64: Crucial fix to conform with ABI (some registers must be preserved across function calls).
+	* gboy_x86_64, gboy_cpu.c: Crucial fix for handling CPU speed changes, in both Assembly and C versions. Game Boy Color-specific fix.
+	* gboy_cpu.c: Crucial fix for handling HDMA transfers; C core must now be equivalent to Assembly core. Game Boy Color-specific fix.
+	* gboy_ioctrl.c: Crucial fix when handling WRAM remap. Game Boy Color-specific fix.
+	* gboy_mbc5.c: Crucial fix for handling MBC5 ROM remap. Game Boy Color-specific fix.
+	* gboy_sound.c: Some audio-related code improvement.
+	* configure.ac: Added note to suggest user to install SDL from OS-specific packet manager when missing. 
+
 Sergio Andrés Gómez del Real <Sergio.G.DelReal@gmail.com>
 Version 0.1
 	* Initial Release!
