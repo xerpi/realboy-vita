@@ -44,18 +44,19 @@ System requirements
 
 Key combinations during emulation
 ---------------------------------
-- Key 1: Video scale 1x
-- Key 2: Video scale 2x
-- Key 3: Video scale 3x
-- Key 4: Video scale 4x
-- Key 5: Enable/disable antialiasing
-- Key 6: Enable/disable fullscreen
-- Key 7: Stop execution and launch GDDB
+- Key '1': Video scale 1x
+- Key '2': Video scale 2x
+- Key '3': Video scale 3x
+- Key '4': Video scale 4x
+- Key '5': Enable/disable antialiasing
+- Key '6': Enable/disable fullscreen
+- Key '7': Stop execution and launch GDDB debugger
+- Key 'Esc': Quit RealBoy
 
 Contact
 -------
 Any question, suggestion or bug report can be sent to Sergio.G.DelReal@gmail.com. People are welcome to join the project and help meet the goals established at the beginning of this README.
-
+Visit http://realboyemulator.wordpress.com for more information.
 
 Special Thanks
 --------------

@@ -1,3 +1,8 @@
+2013-11-4	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
+Version 0.1.2
+	* gboy_ioctrl.c: Crucial fix to some LCD registers' writes.
+	* gboy_joy.c: Minor change to key mapping.
+
 2013-11-3	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
 Version 0.1.1
 	* gboy_x86_64: Crucial fix to conform with ABI (some registers must be preserved across function calls).

@@ -1,6 +1,3 @@
 - Nintendo Baseball wont work because of lack of Serial Link Cable support.
 - MBC2
 - Sound Channel 3
-- Donkey Kong Land 3 does: rst 1, (HL) when HL=0x5yyy (WTF! this was solved by simply discarding the operation, but would be nice to take the same precaution with 'set')
-- Pokemon Crystal problem when battling (graphics)
-- Mega Man Extreme
