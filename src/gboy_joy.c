@@ -29,9 +29,6 @@ joy_event(SDL_KeyboardEvent *key, Uint32 type)
 
 	if (type == SDL_KEYDOWN) {
 		switch (key->keysym.sym) {
-			case SDLK_ESCAPE:
-				exit(0);
-				break;
 			case SDLK_RETURN:
 				key_bitmap|=RET_MASK;
 				break;
@@ -78,7 +75,7 @@ joy_event(SDL_KeyboardEvent *key, Uint32 type)
 				else
 					anti_alias--;
 				break;
-			case SDLK_q:
+			case SDLK_ESCAPE:
 				key_bitmap=0;
 				return 1;
 			case SDLK_7:

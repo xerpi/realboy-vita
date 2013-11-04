@@ -41,6 +41,41 @@ extern long addr_sp_ptrs[16];
 extern void write_sound_reg(unsigned char,unsigned char);
 //extern unsigned char read_sound_reg(unsigned short);
 extern long win_curline;
+long dma_pend=0;
+
+static void
+write_ly_reg(Uint8 val)
+{
+	addr_sp[0xff45] = val;
+	if (addr_sp[0xff44] == addr_sp[0xff45])
+		addr_sp[0xff41]|=4;
+}
+
+static void
+write_hdma1(Uint8 val)
+{
+	if (val > 0x7f && val < 0xa0)
+		val=0;
+	addr_sp[0xff51] = val;
+}
+
+static void
+write_hdma2(Uint8 val)
+{
+	addr_sp[0xff52] = val&0xf0;
+}
+
+static void
+write_hdma3(Uint8 val)
+{
+	addr_sp[0xff53] = val&0x1f;
+}
+
+static void
+write_hdma4(Uint8 val)
+{
+	addr_sp[0xff54] = val&0xf0;
+}
 
 static void
 do_spr_pal_wr(Uint8 val)
@@ -176,6 +211,11 @@ do_vram_dma(Uint8 val)
 	if ((val&0x80)==0)
 	{
 		hdma_on=0; // disable HBlank-Driven DMA
+		if (cpu_cur_mode == 1)
+			dma_pend = 231 + 16 *(val&0x7f);
+		else
+			dma_pend = 231 + 8 *(val&0x7f);
+
 		/* Copy stream */
 		for (i=0; i<trans_len; i++)
 		{
@@ -306,6 +346,12 @@ disable_boot()
 }
 
 static void
+lcd_control(int new_val)
+{
+	addr_sp[0xff41] = (new_val&0xf8) | (addr_sp[0xff41]&7);
+}
+
+static void
 lcd_gen(int new_val)
 {
 
@@ -334,17 +380,18 @@ lcd_init(int new_val)
 	Uint8 i, j;
 	static int lcd_enable=0;
 	long *ptr_vh;
+	addr_sp[0xff40] = new_val;
 	
 	if (lcd_enable==0 && (new_val&0x80))
 	{
 		lcd_enable=1;
-		if (addr_sp[0xff44] == addr_sp[0xff45])
-			addr_sp[0xff41]|=4;
+	//if (addr_sp[0xff44] == addr_sp[0xff45])
+	//	addr_sp[0xff41]|=4;
 		/* This 'h-blk' is 80 cycles */
-		//gb_hblank_clks=80;
+		gb_hblank_clks[0]=80;
 		addr_sp[0xff41] = (addr_sp[0xff41]&0xfc);
 		/* Start with mode 0 */
-		//addr_sp[0xff44] = 0;
+		addr_sp[0xff44] = 0;
 	}
 	/* 
 	 * LCD is being turned off; reinitialize all values.
@@ -353,7 +400,7 @@ lcd_init(int new_val)
 	else if (lcd_enable==1 && (!(new_val&0x80)))
 	{
 		lcd_enable=0;
-		addr_sp[0xff41] = 0xc0;
+		addr_sp[0xff41] &= 0xfc;
 		addr_sp[0xff44] = 0x00;
 		//ptr_vh = &gb_vbln_clks;
 		//ptr_vh[0] = lcd_vbln_hbln_ctrl = ptr_vh[1];
@@ -400,8 +447,7 @@ io_ctrl(Uint8 io_off, Uint8 io_new)
 			break;
 		case 0x04:
 			div_reset();
-			io_new=0;
-			break;
+			return;
 		case 0x05:
 			break;
 		case 0x06:
@@ -573,15 +619,17 @@ io_ctrl(Uint8 io_off, Uint8 io_new)
 			lcd_ctrl(io_new);
 			break;
 		case 0x41:
-			break;
+			lcd_control(io_new);
+			return;
 		case 0x42:
 			break;
 		case 0x43:
 			break;
 		case 0x44:
-			break;
+			return; // read-only
 		case 0x45:
-			break;
+			write_ly_reg(io_new);
+			return;
 		case 0x46:
 			do_oam_dma((unsigned int)io_new);
 			break;
@@ -598,29 +646,37 @@ io_ctrl(Uint8 io_off, Uint8 io_new)
 		case 0x4c:
 			break;
 		case 0x4d:
-			if (type==1)
-				cgb_speed_switch(io_new); // CGB ONLY
+			if (type==1) // CGB ONLY
+				cgb_speed_switch(io_new);
 			return;
 		case 0x4e:
 			break;
 		case 0x4f:
 			if (type==1)
-				do_remap_vram(io_new); // CGB ONLY
+				do_remap_vram(io_new);
 			break;
 		case 0x50:
 			disable_boot();
 			break;
 		case 0x51:
-			break;
+			if (type==1) // CGB ONLY
+				write_hdma1(io_new);
+			return;
 		case 0x52:
-			break;
+			if (type==1) // CGB ONLY
+				write_hdma2(io_new);
+			return;
 		case 0x53:
-			break;
+			if (type==1) // CGB ONLY
+				write_hdma3(io_new);
+			return;
 		case 0x54:
-			break;
+			if (type==1) // CGB ONLY
+				write_hdma4(io_new);
+			return;
 		case 0x55:
-			if (type==1)
-				do_vram_dma(io_new); // CGB ONLY
+			if (type==1) // CGB ONLY
+				do_vram_dma(io_new);
 			return;
 		case 0x56:
 			break;
@@ -659,19 +715,19 @@ io_ctrl(Uint8 io_off, Uint8 io_new)
 		case 0x67:
 			break;
 		case 0x68:
-			if (type==1)
+			if (type==1) // CGB ONLY
 				do_back_pal(io_new);
 			break;
 		case 0x69:
-			if (type==1)
+			if (type==1) // CGB ONLY
 				do_back_pal_wr(io_new);
 			return;
 		case 0x6a:
-			if (type==1)
+			if (type==1) // CGB ONLY
 				do_spr_pal(io_new);
 			break;
 		case 0x6b:
-			if (type==1)
+			if (type==1) // CGB ONLY
 				do_spr_pal_wr(io_new);
 			return;
 		case 0x6c:
@@ -683,8 +739,8 @@ io_ctrl(Uint8 io_off, Uint8 io_new)
 		case 0x6f:
 			break;
 		case 0x70:
-			if (type==1)
-				do_remap_wram(io_new); // CGB ONLY
+			if (type==1) // CGB ONLY
+				do_remap_wram(io_new);
 			break;
 		case 0x71:
 			break;
