@@ -84,6 +84,7 @@ Uint16 del_io=0;
 Uint8 cur_tcks=0;
 Uint32 write_is_delayed=0;
 long nb_spr=0;
+long chg_gam=0;
 Uint8 div_ctrl=0;
 long tac_on=0;
 long tac_counter=0;
@@ -105,6 +106,8 @@ Sint32 gb_oam_clks[2] = { 80, 80 };
 long gb_hblank_clks[2] = { 200, 200 };
 Sint32 gb_vram_clks[2] = { 176, 176 };
 static Uint8 *pc;
+extern int fullscr;
+
 /* 
  * Instruction format: 
  * opcode, dest addr, dest, src addr, src, unit
@@ -5559,6 +5562,44 @@ timer_divider_update()
 			addr_sp[DIV_REG]++;
 	}
 }
+
+static void
+change_game()
+{
+	gb_vram_clks[0] = gb_vram_clks[1];
+	gb_hblank_clks[0] = gb_hblank_clks[1];
+	gb_oam_clks[0] = gb_oam_clks[1];
+	gb_vbln_clks[0] = gb_vbln_clks[1];
+
+	ime_flag = 1;
+	hbln_dma_src = 0;
+	hbln_dma_dst = 0;
+	hbln_dma = 0;
+	hdma_on = 0;
+	cpu_cur_mode = 0;
+	lcd_vbln_hbln_ctrl = 0;
+	div_ctrl = 0;
+	cpu_halt = 0;
+	tac_on = 0;
+	tac_counter = 0;
+	tac_reload = 0;
+	skip_next_frame = 0;
+	nb_spr = 0;
+	spr_cur_extr = 0;
+	just_enabled = 0;
+	write_is_delayed = 0;
+	inst_is_cb = 0;
+
+	regs_sets.regs[AF].UWord = 0;
+	regs_sets.regs[BC].UWord = 0;
+	regs_sets.regs[DE].UWord = 0;
+	regs_sets.regs[SP].UWord = 0;
+	regs_sets.regs[PC].UWord = 0;
+
+	fullscr = 0;
+	chg_gam = 1;
+}
+
 void
 lcd_refrsh()
 {
@@ -5628,7 +5669,7 @@ lcd_refrsh()
 					addr_sp[LCDS_REG] &= ~3;
 					addr_sp[LCDS_REG] |= 2;
 					if ( (proc_evts()) == 1)
-						;//change_game();
+						change_game();
 					if (!skip_next_frame)
 						frame_update();
 					skip_next_frame = frame_skip();
@@ -5711,7 +5752,7 @@ exec_next(int offset)
 
 	pc = addr_sp+offset;
 
-	while (1) {
+	while (!chg_gam) {
 		rec = z80_ldex + *pc;
 		cur_tcks = rec->format[7];
 		if (gbddb==1)
@@ -5735,6 +5776,7 @@ exec_next(int offset)
 		if (addr_sp[LCDC_REG]&0x80)
 			lcd_refrsh();
 	}
+	chg_gam = 0;
 }
 
 /*
