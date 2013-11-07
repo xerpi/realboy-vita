@@ -56,7 +56,7 @@ vid_start()
 	flags = 0; // XXX
 
 	/* Initialize Game Boy or Game Boy Color palette */
-	if (type==0)
+	if (gboy_mode==0)
 	{
 		pal_grey[0]=0xffffff;
 		pal_grey[1]=0x917d5e;

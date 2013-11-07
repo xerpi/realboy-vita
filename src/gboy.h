@@ -17,7 +17,9 @@
  */
 
 #include <ctype.h>
+#include <libgen.h>
 #include <time.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -26,7 +28,9 @@
 #include <string.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
+#include <dirent.h>
 #include <SDL/SDL.h>
 #include <termios.h>
 
@@ -136,6 +140,7 @@
 #define WRITE 1
 #define MAX_STRS 8 // maximum strings
 #define NUM_CMDS 6 // number of commands in CLI interface
+#define CGB 1
 
 /*
  * Structures used by RealBoy
@@ -226,7 +231,7 @@ extern double freq_tbl_snd3[2048];
 extern double freq_tbl_snd4[256];
 /* Misc globals */
 extern Uint32 boot_fd;
-extern Uint32 type;
+extern Uint32 gboy_mode;
 extern Uint32 rom_fd;
 extern Uint8 addr_sp[];
 extern long ints_offs[];

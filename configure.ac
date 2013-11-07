@@ -19,10 +19,10 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
 
 AC_PREREQ([2.68])
-AC_INIT([RealBoy], [0.1.2])
+AC_INIT([RealBoy], [0.1.3])
 AC_CONFIG_AUX_DIR(config)
 AC_CANONICAL_SYSTEM
-AM_PROG_AS(RealBoy, 0.1.2)
+AM_PROG_AS(RealBoy, 0.1.3)
 AC_CONFIG_SRCDIR([src/gboy_mbc1.c])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE

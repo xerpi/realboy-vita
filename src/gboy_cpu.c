@@ -5610,7 +5610,7 @@ lcd_refrsh()
 		case 0:
 			gb_hblank_clks[0] -= cur_tcks;
 			if (gb_hblank_clks[0] <= 0) {
-				if (type==1 && hdma_on==1) {
+				if (gboy_mode==1 && hdma_on==1) {
 					int i;
 					char *dma_src = (char *)hbln_dma_src;
 					char *dma_dst = (char *)hbln_dma_dst;

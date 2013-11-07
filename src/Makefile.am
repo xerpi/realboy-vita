@@ -19,7 +19,7 @@
 
 AUTOMAKE_OPTIONS=no-dependencies
 bin_PROGRAMS = realboy
-realboy_SOURCES = gboy_cmd.c gboy_events.c gboy_frame.c gboy_interp.c gboy_ioctrl.c gboy_joy.c gboy_lcd.c gboy_mbc1.c gboy_mbc2.c gboy_mbc3.c gboy_mbc5.c gboy_mbc.c gboy_parse.c gboy_sound.c gboy_video.c gboy_vm.c globals.c gboy_utils.c main.c SDL_rotozoom.c gddb_main.c gddb_funcs.c gboy.h
+realboy_SOURCES = gboy_cmd.c gboy_events.c gboy_frame.c gboy_interp.c gboy_ioctrl.c gboy_joy.c gboy_lcd.c gboy_mbc1.c gboy_mbc2.c gboy_mbc3.c gboy_mbc5.c gboy_mbc.c gboy_parse.c gboy_sound.c gboy_video.c gboy_vm.c globals.c gboy_utils.c gboy_file.c main.c SDL_rotozoom.c gddb_main.c gddb_funcs.c gboy.h
 
 if USE_X86_64_ASM
 realboy_SOURCES += gboy_x86_64.S

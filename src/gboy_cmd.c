@@ -78,15 +78,15 @@ gboy_load(int num_args, char **ptr_ptrs)
 }
 
 void
-gboy_mode(int num_args, char **ptr_ptrs)
+gboy_selmode(int num_args, char **ptr_ptrs)
 {
 	if (num_args!=2)
 		printf("Available modes are: \"DMG\" and \"CGB\"\n");
 	else {
 		if (!(strncmp(ptr_ptrs[1], "CGB", 255)) || !(strncmp(ptr_ptrs[1], "cgb", 255)))
-			printf("Mode set to CGB\n"), type=1;
+			printf("Mode set to CGB\n"), gboy_mode=1;
 		else if (!(strncmp(ptr_ptrs[1], "DMG", 255)) || !(strncmp(ptr_ptrs[1], "dmg", 255)))
-			printf("Mode set to DMG\n"), type=0;
+			printf("Mode set to DMG\n"), gboy_mode=0;
 		else
 			printf("Available modes are: \"DMG\" and \"CGB\"\n");
 	}

@@ -256,7 +256,7 @@ h_blank:
 	js hblank_exit # yes
 	jmp end_lcd_refrshing # no; execute next instruction
 hblank_exit:
-	testq $1, type # if CGB, check for HBlank-Driven DMA
+	testq $1, gboy_mode # if CGB, check for HBlank-Driven DMA
 	jz 1f
 h_blank_chk_dma:
 	testq $1, hdma_on # check for VRAM DMA
@@ -570,7 +570,7 @@ h_blank_del:
 	js hblank_exit_del # yes
 	jmp proc_ints_del # no; execute next instruction
 hblank_exit_del:
-	testq $1, type # if CGB, check for HBlank-Driven DMA
+	testq $1, gboy_mode # if CGB, check for HBlank-Driven DMA
 	jz 1f
 h_blank_chk_dma_del:
 	testq $1, hdma_on # check for VRAM DMA

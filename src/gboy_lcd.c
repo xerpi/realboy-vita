@@ -390,7 +390,7 @@ render_scanline(long skip)
 
 	if ((addr_sp[0xff40]&1))
 	{
-		if (type==0)
+		if (gboy_mode==0)
 			render_back(buf);
 		else
 			render_back_cgb(buf);
@@ -399,7 +399,7 @@ render_scanline(long skip)
 	/* Window must be enabled and visible */
 	if ((addr_sp[0xff40]&0x20) && ((addr_sp[0xff4b]) < 166) && (addr_sp[0xff44] >= addr_sp[0xff4a]))
 	{
-		if (type==0)
+		if (gboy_mode==0)
 			render_win(buf);
 		else
 			render_win_cgb(buf);
@@ -408,7 +408,7 @@ render_scanline(long skip)
 	if (addr_sp[0xff40]&2) 
 	{
 		render_spr();
-		if (type==0)
+		if (gboy_mode==0)
 			for (i=nb_spr-1; i>=0; i--)
 				render_spr_dmg(buf, &spr_attr[i]);
 		else

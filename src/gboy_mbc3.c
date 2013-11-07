@@ -28,6 +28,7 @@
  */
 
 #include "gboy.h"
+extern char *file_path;
 extern long addr_sp_ptrs[0x10]; // pointer to address spaces
 extern long *addr_sp_bases[0x10]; // pointers to bases
 //extern long test_tmp_val;
@@ -100,11 +101,22 @@ mbc3_1st_rtc()
 void
 mbc3_read_rtc()
 {
+	int i;
 	char *rtc_fname;
+	char *base_name;
+	base_name = basename(file_path);
+	rtc_fname = (char *)malloc(strnlen(base_name, 255)+4);
 
-	rtc_fname = malloc(500);//strnlen(gb_cart.cart_name+5, 255));
-	strncpy(rtc_fname, gb_cart.cart_name, 255);
-	strncat(rtc_fname, ".rtc", 255);
+	strncpy(rtc_fname, base_name, strnlen(base_name, 255));
+	for (i=0; rtc_fname[i] != '.' && rtc_fname[i] != '\0'; i++)
+		;
+
+	if (rtc_fname[i] == '.')
+		i++;
+	else
+		rtc_fname[i++] = '.';
+
+	strncpy(rtc_fname+i, "rtc", 5);
 
 	/* Try to open RTC file */
 	if ((gb_cart.cart_rtc_fd = fopen(rtc_fname, "r+")) == NULL) {
@@ -116,6 +128,8 @@ mbc3_read_rtc()
 	/* There exists a RTC file, so read it to RTC space */
 	else
 		fread(&gb_mbc.mbc_rtc_last, 1, 5+(sizeof(time_t)), gb_cart.cart_rtc_fd);
+
+	free(rtc_fname);
 }
 
 void

@@ -340,7 +340,7 @@ disable_boot()
 	if ((read(rom_fd, addr_sp, 256))==-1)
 		;
 
-	if (type==1)
+	if (gboy_mode==1)
 		if ((pread(rom_fd, addr_sp+0x100, 0x4000-0x100, 256))==-1)
 			;
 }
@@ -646,36 +646,36 @@ io_ctrl(Uint8 io_off, Uint8 io_new)
 		case 0x4c:
 			break;
 		case 0x4d:
-			if (type==1) // CGB ONLY
+			if (gboy_mode==1) // CGB ONLY
 				cgb_speed_switch(io_new);
 			return;
 		case 0x4e:
 			break;
 		case 0x4f:
-			if (type==1)
+			if (gboy_mode==1)
 				do_remap_vram(io_new);
 			break;
 		case 0x50:
 			disable_boot();
 			break;
 		case 0x51:
-			if (type==1) // CGB ONLY
+			if (gboy_mode==1) // CGB ONLY
 				write_hdma1(io_new);
 			return;
 		case 0x52:
-			if (type==1) // CGB ONLY
+			if (gboy_mode==1) // CGB ONLY
 				write_hdma2(io_new);
 			return;
 		case 0x53:
-			if (type==1) // CGB ONLY
+			if (gboy_mode==1) // CGB ONLY
 				write_hdma3(io_new);
 			return;
 		case 0x54:
-			if (type==1) // CGB ONLY
+			if (gboy_mode==1) // CGB ONLY
 				write_hdma4(io_new);
 			return;
 		case 0x55:
-			if (type==1) // CGB ONLY
+			if (gboy_mode==1) // CGB ONLY
 				do_vram_dma(io_new);
 			return;
 		case 0x56:
@@ -715,19 +715,19 @@ io_ctrl(Uint8 io_off, Uint8 io_new)
 		case 0x67:
 			break;
 		case 0x68:
-			if (type==1) // CGB ONLY
+			if (gboy_mode==1) // CGB ONLY
 				do_back_pal(io_new);
 			break;
 		case 0x69:
-			if (type==1) // CGB ONLY
+			if (gboy_mode==1) // CGB ONLY
 				do_back_pal_wr(io_new);
 			return;
 		case 0x6a:
-			if (type==1) // CGB ONLY
+			if (gboy_mode==1) // CGB ONLY
 				do_spr_pal(io_new);
 			break;
 		case 0x6b:
-			if (type==1) // CGB ONLY
+			if (gboy_mode==1) // CGB ONLY
 				do_spr_pal_wr(io_new);
 			return;
 		case 0x6c:
@@ -739,7 +739,7 @@ io_ctrl(Uint8 io_off, Uint8 io_new)
 		case 0x6f:
 			break;
 		case 0x70:
-			if (type==1) // CGB ONLY
+			if (gboy_mode==1) // CGB ONLY
 				do_remap_wram(io_new);
 			break;
 		case 0x71:

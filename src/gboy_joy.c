@@ -81,19 +81,13 @@ joy_event(SDL_KeyboardEvent *key, Uint32 type)
 			case SDLK_7:
 				gbddb=1;
 				break;
-			case SDLK_6:
+			case SDLK_8:
 				if (fullscr==SDL_FULLSCREEN)
-				{
 					fullscr=0;
-					SDL_WM_ToggleFullScreen(screen);
-					screen = SDL_SetVideoMode(160*scale, 144*scale, 32, SDL_RESIZABLE);
-				}
 				else
-				{
 					fullscr=SDL_FULLSCREEN;
-					SDL_WM_ToggleFullScreen(screen);
-					screen = SDL_SetVideoMode(160*scale, 144*scale, 32, SDL_RESIZABLE|fullscr);
-				}
+				if ( (screen = SDL_SetVideoMode(160*scale, 144*scale, 32, SDL_RESIZABLE|fullscr)) == NULL)
+					printf("SDL error %s\n", SDL_GetError());
 				break;
 		}
 	}

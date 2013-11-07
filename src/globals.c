@@ -48,8 +48,11 @@ double freq_tbl_snd3[2048];
 double freq_tbl_snd4[256];
 
 /* Misc globals */
+char *home_path;
+char *file_path;
+int use_boot_rom=0;
 Uint32 boot_fd; // file descriptor for boot ROM
-Uint32 type=0; // Game Boy/Color Game Boy mode
+Uint32 gboy_mode=0; // Game Boy/Color Game Boy mode
 Uint32 rom_fd;
 Uint8 addr_sp[0xffff];
 long ints_offs[] = { 0x40, 0x48, 0x50, 0x58, 0x60 };
