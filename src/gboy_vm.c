@@ -257,7 +257,7 @@ static void
 alloc_addr_sp()
 {
 
-	/* Set addresses starting with 0x0, 0x1, ..., 0xf to default address space */
+	/* Map addresses starting with 0x0, 0x1, ..., 0xf to default address space */
 	int i;
 	for (i=0; i<=16; i++)
 		addr_sp_ptrs[i] = (long)addr_sp;
@@ -265,7 +265,7 @@ alloc_addr_sp()
 	/* Allocate space for rom banks */
 	gb_cart.cart_rom_banks = malloc(0x8000<<gb_cart.cart_rom_size);
 
-	/* Initial ROM addresses */
+	/* Map address range 0x4000-0x7fff to first ROM bank */
 	addr_sp_ptrs[4]=addr_sp_ptrs[5]=addr_sp_ptrs[6]=addr_sp_ptrs[7]=(long)(gb_cart.cart_rom_banks-0x4000);
 
 	/* Determine RAM size: gb_cart.cart_ram_size*1024 bytes */
@@ -287,15 +287,13 @@ alloc_addr_sp()
 	}
 
 	/* If CGB, assign second bank of VRAM and WRAM banks */
-	if (gboy_mode==1)
-	{
+	if (gboy_mode==1) {
 		gb_cart.cart_vram_bank=(char *)malloc(0x2000);
 		gb_cart.cart_wram_bank=(char *)malloc(0x1000*7);
 		gb_cart.cart_cuvram_bank=0;
 		gb_cart.cart_cuwram_bank=0;
 	}
-	else
-	{
+	else {
 		gb_cart.cart_vram_bank=NULL;
 		gb_cart.cart_wram_bank=NULL;
 	}
@@ -303,16 +301,38 @@ alloc_addr_sp()
 	/* If we have external RAM */
 	if (gb_cart.cart_ram_size) 
 	{
-		int file_path_size;
 		base_name = basename(file_path);
 		save_name = (char *)malloc(strnlen(base_name, 255)+4);
 
 		strncpy(save_name, base_name, strnlen(base_name, 255));
+
+		/*
+		 * Search the filename string for a '.' character.
+		 *
+		 * Generally ROMS are appended a ".gb" or ".gbc" (e.g. Foo.gbc).
+		 * In this case we replace ".gbc" with ".sav" and create the
+		 * file in the configuration directory (e.g. Foo.sav).
+		 *
+		 * However, extensions such as ".gbc" are not necessary; it is
+		 * possible to execute a ROM with filename "FooBar". In this case,
+		 * no '.' character will be found, and the ".sav" string will just 
+		 * be appended to the filename, (FooBar.sav).
+		 */
 		for (i=0; save_name[i] != '.' && save_name[i] != '\0'; i++)
 			;
 
+		/* 
+		 * If a '.' character was found, most likely the ROM's filename
+		 * is something like "Foo.gb" or "Foo.gbc".
+		 * Note that it is possible as well to have a filename "Foo.Bar.Bob",
+		 * and this won't cause any trouble (savefile would be "Foo.sav").
+		 */
 		if (save_name[i] == '.')
 			i++;
+		/* 
+		 * If a '.' character was NOT found, we are at the NULL character (end of string).
+		 * We have enough space to append ".sav" to the string.
+		 */
 		else
 			save_name[i++] = '.';
 		strncpy(save_name+i, "sav", 5);
