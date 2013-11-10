@@ -18,10 +18,7 @@
 
 #include "gboy.h"
 Uint32 key_bitmap;
-extern Uint32 scale;
-extern Uint32 fullscreen;
-extern Uint32 anti_alias;
-int fullscr=0;
+extern void vid_scale(Uint32);
 
 long
 joy_event(SDL_KeyboardEvent *key, Uint32 type)
@@ -54,40 +51,28 @@ joy_event(SDL_KeyboardEvent *key, Uint32 type)
 				key_bitmap|=RIGHT_MASK;
 				break;
 			case SDLK_1:
-				screen = SDL_SetVideoMode(160, 144, 32,SDL_RESIZABLE|fullscr);
-				scale = 1;
+				vid_scale(1);
 				break;
 			case SDLK_2:
-				screen = SDL_SetVideoMode(160*2, 144*2, 32,SDL_RESIZABLE|fullscr);
-				scale = 2;
+				vid_scale(2);
 				break;
 			case SDLK_3:
-				screen = SDL_SetVideoMode(160*3, 144*3, 32,SDL_RESIZABLE|fullscr);
-				scale = 3;
+				vid_scale(3);
 				break;
 			case SDLK_4:
-				screen = SDL_SetVideoMode(160*4, 144*4, 32,SDL_RESIZABLE|fullscr);
-				scale = 4;
+				vid_scale(4);
 				break;
 			case SDLK_5:
-				if (anti_alias==0)
-					anti_alias++;
-				else
-					anti_alias--;
+				vid_toggle_aalias();
 				break;
 			case SDLK_ESCAPE:
 				key_bitmap=0;
 				return 1;
 			case SDLK_7:
-				gbddb=1;
+				gddb_start();
 				break;
-			case SDLK_8:
-				if (fullscr==SDL_FULLSCREEN)
-					fullscr=0;
-				else
-					fullscr=SDL_FULLSCREEN;
-				if ( (screen = SDL_SetVideoMode(160*scale, 144*scale, 32, SDL_RESIZABLE|fullscr)) == NULL)
-					printf("SDL error %s\n", SDL_GetError());
+			case SDLK_6:
+				vid_toggle_fullscreen();
 				break;
 		}
 	}

@@ -21,16 +21,12 @@
 #include "gboy.h"
 
 static Uint8 back_col[170][170];
-static SDL_Surface *back1;
-static SDL_Surface *temp=NULL;
 
 /* Global/Exported variables */
 Uint32 spr_pal_inc_indx;
 Uint32 spr_pal_cur_indx;
 Uint32 pal_inc_indx;
 Uint32 pal_cur_indx;
-Uint32 scale=1;
-Uint32 anti_alias=0;
 Uint16 spr_pal[8][4];
 Uint16 bg_pal[8][4];
 
@@ -59,38 +55,6 @@ struct spr_attr {
 	Uint8 pal;
 	Uint8 priority;
 } spr_attr[40];
-
-void
-frame_update()
-{
-
-	switch (scale) {
-		case 1:
-			temp = x1;
-			break;
-		case 2:
-			temp = x2;
-			break;
-		case 3:
-			temp = x3;
-			break;
-		case 4:
-			temp = x4;
-			break;
-	}
-
-	if (temp==NULL)
-		while (1) ;
-
-	if (temp==x1)
-		SDL_BlitSurface(back, NULL, screen, NULL);
-	else {
-		back1 = _zoomSurfaceRGBA(back, temp, 0, 0, anti_alias);
-		SDL_BlitSurface(back1, NULL, screen, NULL);
-	}
-
-  SDL_Flip(screen);
-}
 
 static void
 render_win_cgb(Uint32 *buf)

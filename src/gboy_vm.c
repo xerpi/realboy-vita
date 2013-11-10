@@ -23,13 +23,13 @@
 #define GAM_TIT 0x134 // ASCII game title
 #define MAN_COD 0x13f // Manufacurer code
 #define CGB_FLG 0x143 // CGB support
-#define GAM_LIC_NEW 0x144 // Licensee (new)
-#define JAP_VER 0x14a // Japanese version
-#define GAM_LIC 0x14b // Licensee
+#define LIC_NEW 0x144 // Licensee (new)
 #define SGB_FLG 0x146 // SGB support
 #define CAR_TYP 0x147 // Memory sets supported by cartridge
 #define ROM_SIZ 0x148 // ROM size in (32KB<<n) units
 #define RAM_SIZ 0x149 // External RAM size
+#define JAP_VER 0x14a // Japanese version
+#define GAM_LIC 0x14b // Licensee
 
 /* Some sizes */
 #define CART_HDR 336 // Size of header
@@ -59,6 +59,7 @@ extern long gb_hblank_clks;
 extern long addr_sp_ptrs[0x10];
 
 /* Defined in globals.c */
+extern void rom_exec(int);
 extern Uint32 gboy_mode;
 extern Uint8 addr_sp[];
 extern int use_boot_rom;
@@ -69,7 +70,7 @@ char *base_name;
 char *save_name;
 static const char * const gb_boot_strs[] = { "boot_roms/dmg_rom.bin", "boot_roms/gbc_bios.bin" };
 static Uint8 cart_init_rd[336]; // Temporary space for cartridge's header
-static const Uint8 nin_log[] = { 0xce, 0xed, 0x66, 0x66,  0xcc, 0x0d, 0x00, 0x0b, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0c, 0x00, 0x0d, 0x00, 0x08, 0x11, 0x1f,  0x88, 0x89, 0x00, 0x0e, 0xdc, 0xcc, 0x6e, 0xe6, 0xdd, 0xdd, 0xd9, 0x99, 0xbb, 0xbb, 0x67, 0x63,  0x6e, 0x0e, 0xec, 0xcc, 0xdd, 0xdc, 0x99, 0x9f, 0xbb, 0xb9, 0x33, 0x3e }; // Nintendo Gameboy signature
+static const Uint8 nin_log[] = { 0xce, 0xed, 0x66, 0x66,  0xcc, 0x0d, 0x00, 0x0b, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0c, 0x00, 0x0d, 0x00, 0x08, 0x11, 0x1f,  0x88, 0x89, 0x00, 0x0e, 0xdc, 0xcc, 0x6e, 0xe6, 0xdd, 0xdd, 0xd9, 0x99, 0xbb, 0xbb, 0x67, 0x63,  0x6e, 0x0e, 0xec, 0xcc, 0xdd, 0xdc, 0x99, 0x9f, 0xbb, 0xb9, 0x33, 0x3e }; // Nintendo Game Boy signature
 
 
 /*
@@ -80,7 +81,7 @@ ld_boot()
 {
 	/* Open file XXX */
 	if ( (boot_fd = open(gb_boot_strs[gboy_mode], 0)) == -1) {
-		printf("Error open\n");
+		perror("Error open\n");
 		return -1;
 	}
 	
@@ -206,8 +207,8 @@ parse_cart_hdr()
 	printf("================================\n");
 
 	if (cart_init_rd[GAM_LIC]==0x33) {
-		gb_cart.cart_licensee[0] = (char)cart_init_rd[GAM_LIC_NEW];
-		gb_cart.cart_licensee[1] = (char)cart_init_rd[GAM_LIC_NEW+1];
+		gb_cart.cart_licensee[0] = (char)cart_init_rd[LIC_NEW];
+		gb_cart.cart_licensee[1] = (char)cart_init_rd[LIC_NEW+1];
 	}
 	else {
 		gb_cart.cart_licensee[0] = (char)cart_init_rd[GAM_LIC];
@@ -287,7 +288,7 @@ alloc_addr_sp()
 	}
 
 	/* If CGB, assign second bank of VRAM and WRAM banks */
-	if (gboy_mode==1) {
+	if (gboy_mode==CGB) {
 		gb_cart.cart_vram_bank=(char *)malloc(0x2000);
 		gb_cart.cart_wram_bank=(char *)malloc(0x1000*7);
 		gb_cart.cart_cuvram_bank=0;
@@ -351,6 +352,7 @@ alloc_addr_sp()
 			fread(gb_cart.cart_ram_banks, 1, 1024*gb_cart.cart_ram_size, gb_cart.cart_ram_fd);
 		/* Initial RAM addresses */
 		addr_sp_ptrs[0xa]=addr_sp_ptrs[0xb]=(long)(gb_cart.cart_ram_banks-0xa000);
+
 		free(save_name);
 	}
 	/* The cartridge has no external RAM */
@@ -384,7 +386,8 @@ start_vm()
 	 * If valid ROM (XXX this doesn't actually test for the validity of a ROM; 
 	 * this is done through checksuming)
 	 */
-	if (file_logo_size==LOG_SIZ) {
+	if (file_logo_size==LOG_SIZ)
+	{
 		/* Get information from cartridge's header */
 		parse_cart_hdr();
 		/* Allocate and initialize address space */
@@ -419,7 +422,7 @@ start_vm()
 			rom_exec(0x100);
 		}
 	}
-	/* Else bad ROM */
+	/* Else bad ROM; return error and exit */
 	else
 		return -1;
 

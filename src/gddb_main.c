@@ -53,6 +53,12 @@ int gddb_tmp=0;
 void (*gddb_cmds_funcs[7])(int, char **) = { gddb_print, gddb_show, gddb_dasm, gddb_step, gddb_break, gddb_help, gddb_cont };
 
 void
+gddb_start()
+{
+	gbddb=1;
+}
+
+void
 gddb_reset()
 {
 	gbddb=0;

@@ -18,7 +18,13 @@
 
 #include "gboy.h"
 
+/* Locally-global variables */
+static SDL_Surface *back1;
+static SDL_Surface *temp=NULL;
+
 /* Global/Exported variables */
+Uint32 scale=1;
+Uint32 anti_alias=0;
 SDL_Surface *zoomS;
 SDL_Surface *x1;
 SDL_Surface *x2;
@@ -27,10 +33,32 @@ SDL_Surface *x4;
 Uint32 fullscreen;
 
 /* Imported/External variables */
+extern SDL_Surface *_zoomSurfaceRGBA(SDL_Surface *, SDL_Surface *, int, int, int);
 extern SDL_Surface *back;
-extern Uint32 scale;
-extern Uint32 anti_alias;
-extern Uint32 fullscreen;
+
+void
+vid_scale(Uint32 scale_factor)
+{
+	screen = SDL_SetVideoMode(160*scale_factor, 144*scale_factor, 32, SDL_RESIZABLE|fullscreen);
+	scale = scale_factor;
+}
+
+void
+vid_toggle_aalias()
+{
+	anti_alias = (~anti_alias)&1;
+}
+
+void
+vid_toggle_fullscreen()
+{
+	if (fullscreen==SDL_FULLSCREEN)
+		fullscreen=0;
+	else
+		fullscreen=SDL_FULLSCREEN;
+	if ( (screen = SDL_SetVideoMode(160*scale, 144*scale, 32, SDL_RESIZABLE|fullscreen)) == NULL)
+		printf("SDL error %s\n", SDL_GetError());
+}
 
 void
 vid_reset()
@@ -45,6 +73,38 @@ vid_reset()
 	SDL_QuitSubSystem(SDL_INIT_VIDEO);
 	scale=1;
 	anti_alias=0;
+}
+
+void
+vid_frame_update()
+{
+
+	switch (scale) {
+		case 1:
+			temp = x1;
+			break;
+		case 2:
+			temp = x2;
+			break;
+		case 3:
+			temp = x3;
+			break;
+		case 4:
+			temp = x4;
+			break;
+	}
+
+	if (temp==NULL)
+		while (1) ;
+
+	if (temp==x1)
+		SDL_BlitSurface(back, NULL, screen, NULL);
+	else {
+		back1 = _zoomSurfaceRGBA(back, temp, 0, 0, anti_alias);
+		SDL_BlitSurface(back1, NULL, screen, NULL);
+	}
+
+  SDL_Flip(screen);
 }
 
 void

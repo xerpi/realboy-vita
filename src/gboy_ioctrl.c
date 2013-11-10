@@ -241,7 +241,7 @@ do_vram_dma(Uint8 val)
 static void
 do_oam_dma(unsigned int val)
 {
-	long *ptr_addr_ptrs = &addr_sp_ptrs;
+	long *ptr_addr_ptrs = (long *)&addr_sp_ptrs;
 	char *ptr_src;
 	char *ptr_dst;
 	int val_offs, i;

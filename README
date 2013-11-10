@@ -33,9 +33,6 @@ RealBoy is distributed with Autotools-derived scripts, so compiling is just a ma
 
 ./configure --disable-asm (Force compiling the C instead of Assembly code for x86_64 architectures. By default, the configure script chooses the Assembly sources automatically on these processors.)
 
-./configure --enable-cli (Enable Command-Line Interface. When compiled with this option, and executed without arguments, RealBoy will present a CLI instead of displaying 'help' and exiting.)
-
-
 System requirements
 -------------------
 
@@ -60,4 +57,4 @@ Visit http://realboyemulator.wordpress.com for more information.
 
 Special Thanks
 --------------
-Mathieu Peponas from gngb for kindly answering an email, gngb, MESS, VisualBoyAdvance, SDL, SDL_gfx, GNU GCC, GNU Autotools, Mom, Dad and my dog Chocolate.
+Mathieu Peponas from gngb for kindly answering an email, gngb, MESS, VisualBoyAdvance, SDL, SDL_gfx, GNU GCC, GNU Autotools.

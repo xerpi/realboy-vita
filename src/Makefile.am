@@ -31,8 +31,4 @@ else
 AM_CPPFLAGS =
 realboy_SOURCES += gboy_cpu.c
 endif
-
-if USE_CLI
-AM_CPPFLAGS += -DUSE_CLI
-endif
 AM_CFLAGS = -Wno-unused-result

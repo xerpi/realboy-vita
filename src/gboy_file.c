@@ -1,9 +1,9 @@
 #include "gboy.h"
 
 void
-create_dir(char *dir_name, mode_t mode_mask)
+create_dir(char *dir_name, Uint32 mode_mask)
 {
-	if ( (mkdir(dir_name, mode_mask)) == -1)
+	if ( (mkdir(dir_name, (mode_t)mode_mask)) == -1)
 		perror("Create Directory: ");
 }
 

@@ -43,9 +43,7 @@ AC_CHECK_HEADERS([fcntl.h stdlib.h string.h sys/time.h termios.h unistd.h SDL/SD
 AC_CHECK_FUNCS([atexit getcwd gettimeofday memset strndup])
 
 AC_ARG_ENABLE([asm],[AS_HELP_STRING([--disable-asm], [disable assembly usage (default is yes on x86_64 archs; no otherwise)])],[enable_asm="$enableval"], [enable_asm=yes])
-AC_ARG_ENABLE([cli],[AS_HELP_STRING([--enable-cli], [enable the Command-Line Interface (default is no)])],[enable_cli=yes], [enable_cli="$enablevar"])
 
-AM_CONDITIONAL([USE_CLI], [test "x$enable_cli" = xyes])
 AM_CONDITIONAL([USE_X86_64_ASM], [test "x$host_cpu" = xx86_64 -a "x$enable_asm" = xyes])
 
 case "$host_os" in

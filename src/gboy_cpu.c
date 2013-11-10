@@ -106,7 +106,7 @@ Sint32 gb_oam_clks[2] = { 80, 80 };
 long gb_hblank_clks[2] = { 200, 200 };
 Sint32 gb_vram_clks[2] = { 176, 176 };
 static Uint8 *pc;
-extern int fullscr;
+extern Uint32 fullscreen;
 
 /* 
  * Instruction format: 
@@ -5596,7 +5596,7 @@ change_game()
 	regs_sets.regs[SP].UWord = 0;
 	regs_sets.regs[PC].UWord = 0;
 
-	fullscr = 0;
+	fullscreen = 0;
 	chg_gam = 1;
 }
 
@@ -5671,7 +5671,7 @@ lcd_refrsh()
 					if ( (proc_evts()) == 1)
 						change_game();
 					if (!skip_next_frame)
-						frame_update();
+						vid_frame_update();
 					skip_next_frame = frame_skip();
 				}
 				else {

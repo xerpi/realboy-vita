@@ -370,7 +370,7 @@ vbln_end:
 	jnz change_game
 	cmpb $0, skip_next_frame # skip next frame?
 	jne 1f # yes
-	call frame_update # no; update frame
+	call vid_frame_update # no; update frame
 1:
 	call frame_skip # call frame skip function
 	movb %al, skip_next_frame # save return value
@@ -482,7 +482,7 @@ change_game:
 	shrq $3, %rcx
 	rep
 	stosq # reset registers
-	movq $0, fullscr
+	movq $0, fullscreen
 	ret
 
 .p2align 4
@@ -687,7 +687,7 @@ vbln_end_del:
 	jnz change_game
 	cmpb $0, skip_next_frame # skip next frame?
 	jne 1f # yes
-	call frame_update # no; update frame
+	call vid_frame_update # no; update frame
 1:
 	call frame_skip # call frame skip function
 	movb %al, skip_next_frame # save return value

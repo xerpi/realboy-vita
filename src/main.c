@@ -24,19 +24,14 @@ extern int use_boot_rom;
 extern Uint32 scale;
 extern Uint32 fullscreen;
 extern int frames_per_second;
-extern void gboy_ddb(int, char **);
-extern void gboy_play(int, char **);
-extern void gboy_load(int, char **);
-extern void gboy_help(int, char **);
-extern void gboy_fps(int, char **);
-extern void gboy_selmode(int, char **);
+extern int start_vm();
+extern void change_cur_dir(char *);
+extern int search_file_dir(char *, char *);
 extern char *get_home_path();
+extern void create_dir(char *, Uint32);
 
-/* Pointers to command functions */
-static void (*gboy_cmds_funcs[NUM_CMDS])(int, char **) = { gboy_help, gboy_load, gboy_play, gboy_ddb, gboy_fps, gboy_selmode };
-static char welcome_message[] = "\n==================================\nWelcome to RealBoy: A Complete, Fast, Yet Accurate, Emulator for the Nintendo® Game Boy®/Game Boy Color®\nType help\n";
-static const char * const gboy_cmds[] = { "help", "load", "play", "debug", "fps", "mode" };
 
+/* Locally-global variables*/
 struct option options[] = {
 	{ "video-2x", no_argument, 0, '2' },
 	{ "video-3x", no_argument, 0, '3' },
@@ -49,19 +44,6 @@ struct option options[] = {
 	{ "version", no_argument, 0, 'h' },
 	{ NULL, no_argument, 0, 0 }
 };
-
-/*
- * Call the interpreter until a file is loaded and the 'play' command executed
- */
-static void
-gboy_init_interp()
-{
-	gbplay=0;
-
-	printf("%s", welcome_message);
-	while (gbplay == 0)
-		gboy_interp("gboy> ", NUM_CMDS, gboy_cmds, gboy_cmds_funcs, NULL);
-}
 
 static void
 usage(char *cmd)
@@ -84,36 +66,10 @@ Options:\n\
 
 /*
  * Main function.
- * Loops through the command-line interpreter until ready to play.
- * XXX implement argv
  */
 int
 main(int argc, char *argv[])
 {
-/*
- * USE_CLI is defined when the configure script is executed with --enable-cli; it is disabled by default.
- * It starts a Command Line Interpreter, which can be used to enable/disable desired features.
- * It is recommended not to use it, since it is equivalent to passing the desired arguments to RealBoy
- * when executed from the shell; it is deprecated and surely will be removed in future versions.
- */
-#ifdef USE_CLI
-	while (1) {
-		gboy_init_interp(); // call the command-line interface
-		while (1) {
-			/*
-			 * start_vm() returns when the file opened doesn't represent
-			 * a valid Game Boy ROM, or when the user chooses to change
-			 * the ROM.
-			 */
-			if ((start_vm(rom_fd))==-1)
-				printf("File not a gb binary\n\n");
-			close(rom_fd);
-			rom_fd=0;
-			break;
-		}
-	}
-#else
-
 	/* If no arguments, print usage and exit. */
 	if (argc==1) {
 		usage(argv[0]);
@@ -183,13 +139,13 @@ main(int argc, char *argv[])
 
 	/* Search for configuration directory */
 	int found_file;
-	found_file =  search_file_dir(".realboy", home_path);
+	found_file = search_file_dir(".realboy", home_path);
 
 	/* Create configuration directory if it doesn't exist */
 	if (!found_file) {
-		printf("\n----------------------------\n", home_path);
-		printf("One-time action: \n", home_path);
-		printf("----------------------------\n", home_path);
+		printf("\n----------------------------\n");
+		printf("One-time action: \n");
+		printf("----------------------------\n");
 		printf("Creating configuration directory in %s\n", home_path);
 		create_dir(".realboy", 0755);
 		printf("Created directory %s%s\n\n", home_path, "/.realboy");
@@ -199,7 +155,7 @@ main(int argc, char *argv[])
 	if (rom_fd > 0)	{
 		int ret_val; // value returned from emulation
 		/* Start Virtual Machine */
-		ret_val=start_vm(rom_fd);
+		ret_val=start_vm();
 		/* Error returned if file not valid */
 		if (ret_val == -1)
 			printf("File not a gb binary\n\n");
@@ -207,9 +163,5 @@ main(int argc, char *argv[])
 			printf("\nThanks for using RealBoy!\n\n");
 	}
 
-	return 0;
-#endif
-
-	/* Execution never gets here */
 	return 0;
 }

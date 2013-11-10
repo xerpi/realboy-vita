@@ -265,9 +265,9 @@ SDL_Surface *zoomSurface(SDL_Surface *rz_dst, SDL_Surface * src, int zoomx, int 
 	/*
 	* Lock source surface 
 	*/
-//if (SDL_MUSTLOCK(src)) {
-//	SDL_LockSurface(src);
-//}
+	if (SDL_MUSTLOCK(src)) {
+		SDL_LockSurface(src);
+	}
 
 	/*
 	* Call the 32bit transformation routine to do the zooming (using alpha) 
@@ -276,9 +276,9 @@ SDL_Surface *zoomSurface(SDL_Surface *rz_dst, SDL_Surface * src, int zoomx, int 
 	/*
 	* Unlock source surface 
 	*/
-//if (SDL_MUSTLOCK(src)) {
-//	SDL_UnlockSurface(src);
-//}
+	if (SDL_MUSTLOCK(src)) {
+		SDL_UnlockSurface(src);
+	}
 
 	/*
 	* Return destination surface 
