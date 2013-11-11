@@ -230,9 +230,9 @@ extern double freq_tbl[2048];
 extern double freq_tbl_snd3[2048];
 extern double freq_tbl_snd4[256];
 /* Misc globals */
-extern Uint32 boot_fd;
+extern FILE *boot_file;
 extern Uint32 gboy_mode;
-extern Uint32 rom_fd;
+extern FILE *rom_file;
 extern Uint8 addr_sp[];
 extern long ints_offs[];
 extern const char *types_vec[];

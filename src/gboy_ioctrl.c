@@ -334,15 +334,17 @@ tac_update(int new_val)
 static void
 disable_boot()
 {
-	lseek(rom_fd, 0, SEEK_SET);
+	rewind(rom_file);
 
 	/* Read to address space */
-	if ((read(rom_fd, addr_sp, 256))==-1)
-		;
+	if ((fread(addr_sp, 1, 256, rom_file))==-1)
+		perror("fread()");
 
-	if (gboy_mode==1)
-		if ((pread(rom_fd, addr_sp+0x100, 0x4000-0x100, 256))==-1)
-			;
+	if (gboy_mode==1) {
+		fseek(rom_file, 256, SEEK_SET);
+		if ((fread(addr_sp+0x100, 1, 0x4000-0x100, rom_file))==-1)
+			perror("fread()");
+	}
 }
 
 static void

@@ -125,7 +125,7 @@ main(int argc, char *argv[])
 	} while (op != -1);
 
 	if (optind < argc) {
-		if ( (rom_fd=open(argv[optind], O_RDONLY)) == -1)
+		if ( (rom_file=fopen(argv[optind], "r")) == NULL)
 			perror(argv[optind]);
 		else
 			file_path = strndup(argv[optind], 256);
@@ -152,7 +152,7 @@ main(int argc, char *argv[])
 	}
 	change_cur_dir(".realboy");
 	
-	if (rom_fd > 0)	{
+	if (rom_file != NULL)	{
 		int ret_val; // value returned from emulation
 		/* Start Virtual Machine */
 		ret_val=start_vm();

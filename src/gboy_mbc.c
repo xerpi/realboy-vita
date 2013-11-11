@@ -19,7 +19,7 @@
 #include "gboy.h"
 extern long addr_sp_ptrs[0x10]; // pointer to address spaces
 
-/* Functions included in various mbc's */
+/* Functions defined in gboy_mbcX.c */
 extern void mbc1_mode(int);
 extern void mbc1_ram_bank(int);
 extern void mbc1_rom_bank(int);
@@ -59,7 +59,6 @@ mbc_rom_remap()
 
 /*
  * Main structure holding the various mbcX-specific functions.
- * Used by Assembly routine gboy_cpu.S
  */
 static void (*mbc_def_funcs[4][5])(int) = { mbc1_ram_en, mbc1_rom_bank, mbc1_ram_bank, mbc1_mode, NULL, mbc2_ram_wr, mbc2_ram_en, mbc2_rom_bank, NULL, NULL, mbc3_ramtim_en, mbc3_rom_bank, mbc3_ramrtc_bank, mbc3_clk, NULL, mbc5_ram_en, mbc5_rom_bank_low, mbc5_rom_bank_high, mbc5_ram_bank, mbc5_dummy };
 
@@ -69,7 +68,6 @@ static void (*mbc_def_funcs[4][5])(int) = { mbc1_ram_en, mbc1_rom_bank, mbc1_ram
 void
 mbc_init(int mbc_num)
 {
-
 	switch (mbc_num) {
 		case 1:
 		case 2:
@@ -98,8 +96,7 @@ mbc_init(int mbc_num)
 			break;
 	};
 
-	if (mbc_num==3)
-	{
+	if (mbc_num==3) {
 		gb_mbc.mbc_funcs[0] = mbc_def_funcs[mbc_num][0];
 		gb_mbc.mbc_funcs[1] = mbc_def_funcs[mbc_num][0];
 		gb_mbc.mbc_funcs[2] = mbc_def_funcs[mbc_num][1];
@@ -110,8 +107,7 @@ mbc_init(int mbc_num)
 		gb_mbc.mbc_funcs[7] = mbc_def_funcs[mbc_num][4];
 	}
 	
-	else
-	{
+	else {
 		gb_mbc.mbc_funcs[0] = mbc_def_funcs[mbc_num][0];
 		gb_mbc.mbc_funcs[1] = mbc_def_funcs[mbc_num][0];
 		gb_mbc.mbc_funcs[2] = mbc_def_funcs[mbc_num][1];

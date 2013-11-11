@@ -51,9 +51,9 @@ double freq_tbl_snd4[256];
 char *home_path;
 char *file_path;
 int use_boot_rom=0;
-Uint32 boot_fd; // file descriptor for boot ROM
 Uint32 gboy_mode=0; // Game Boy/Color Game Boy mode
-Uint32 rom_fd;
+FILE *boot_file;
+FILE *rom_file;
 Uint8 addr_sp[0xffff];
 long ints_offs[] = { 0x40, 0x48, 0x50, 0x58, 0x60 };
 const char *types_vec[] = { "Rom only", "MBC1", "MBC1+RAM", "MBC1+RAM+BATTERY", NULL, "MBC2", "MBC2+BATTERY", NULL, "ROM+RAM", "ROM+RAM+BATTERY", NULL, "MMM01", "MMM01+RAM", "MMM01+RAM+BATTERY", NULL, "MBC3+TIMER+BATTERY", "MBC3+TIMER+RAM+BATTERY", "MBC3", "MBC3+RAM", "MBC3+RAM+BATTERY", NULL, NULL, NULL, NULL, NULL, "MBC5", "MBC5+RAM", "MBC5+RAM+BATTERY", "MBC5+RUMBLE", "MBC5+RUMBLE+RAM", "MBC5+RUMBLE+RAM+BATTERY" };

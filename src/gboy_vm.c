@@ -60,6 +60,7 @@ extern long addr_sp_ptrs[0x10];
 
 /* Defined in globals.c */
 extern void rom_exec(int);
+extern void mbc_init(int);
 extern Uint32 gboy_mode;
 extern Uint8 addr_sp[];
 extern int use_boot_rom;
@@ -80,16 +81,16 @@ static int
 ld_boot()
 {
 	/* Open file XXX */
-	if ( (boot_fd = open(gb_boot_strs[gboy_mode], 0)) == -1) {
+	if ( (boot_file = fopen(gb_boot_strs[gboy_mode], "r")) == NULL) {
 		perror("Error open\n");
 		return -1;
 	}
 	
 	/* Read to address space XXX */
 	if (gboy_mode==1)
-		read(boot_fd, addr_sp, 0x8ff);
+		fread(addr_sp, 1, 0x8ff, boot_file);
 	else
-		read(boot_fd, addr_sp, 256);
+		fread(addr_sp, 1, 256, boot_file);
 
 	return 0;
 }
@@ -215,7 +216,7 @@ parse_cart_hdr()
 		gb_cart.cart_licensee[1] = (char)cart_init_rd[GAM_LIC+1];
 	}
 
-	gb_cart.cart_licensee[2] = 0; // end string with NULL
+	gb_cart.cart_licensee[2] = 0; // End string with NULL
 
 	if ( ((gb_cart.cart_sgb |= cart_init_rd[SGB_FLG] & 0x03) == 0x03))
 		printf("SGB Support\n");
@@ -248,7 +249,6 @@ parse_cart_hdr()
 		printf("Failed!\n");
 	else
 		printf("OK\n");
-									
 }
 
 /*
@@ -257,7 +257,6 @@ parse_cart_hdr()
 static void
 alloc_addr_sp()
 {
-
 	/* Map addresses starting with 0x0, 0x1, ..., 0xf to default address space */
 	int i;
 	for (i=0; i<=16; i++)
@@ -358,8 +357,6 @@ alloc_addr_sp()
 	/* The cartridge has no external RAM */
 	else
 		gb_cart.cart_ram_banks = NULL;
-
-
 }
 
 /*
@@ -369,7 +366,7 @@ int
 start_vm()
 {
 	/* Read cartridge's header */
-	read(rom_fd, cart_init_rd, CART_HDR);
+	fread(cart_init_rd, 1, CART_HDR, rom_file);
 
 	/* Check header */
 	int file_logo_size;
@@ -395,7 +392,8 @@ start_vm()
 		/* Initialize MBC driver */
 		mbc_init(gb_cart.cart_type);
 		/* Load additional banks */
-		pread(rom_fd, gb_cart.cart_rom_banks, 0x8000<<gb_cart.cart_rom_size, 0x4000);
+		fseek(rom_file, 0x4000, SEEK_SET);
+		fread(gb_cart.cart_rom_banks, 1, 0x8000<<gb_cart.cart_rom_size, rom_file);
 		/* Initialize the video subsystem */
 		vid_start();
 		/* Initialize the sound subsystem */
@@ -405,20 +403,26 @@ start_vm()
 			/* If error loading boot ROM, just fallback to boot without it */	
 			if (ld_boot() == -1) {
 				gboy_setup();
-				pread(rom_fd, addr_sp, 0x4000, 0);
+				rewind(rom_file);
+				fread(addr_sp, 1, 0x4000, rom_file);
 				rom_exec(0x100);
 			}
 			else {
-				if (gboy_mode==CGB)
-					pread(rom_fd, addr_sp+0x100, 256, 256);
-				else
-					pread(rom_fd, addr_sp+0x100, 0x4000-0x100, 256);
+				if (gboy_mode==CGB) {
+					fseek(rom_file, 256, SEEK_SET);
+					fread(addr_sp+0x100, 1, 256, rom_file);
+				}
+				else {
+					fseek(rom_file, 256, SEEK_SET);
+					fread(addr_sp+0x100, 1, 0x4000-0x100, rom_file);
+				}
 				rom_exec(0);
 			}
 		}
 		else {
 			gboy_setup();
-			pread(rom_fd, addr_sp, 0x4000, 0);
+			rewind(rom_file);
+			fread(addr_sp, 1, 0x4000, rom_file);
 			rom_exec(0x100);
 		}
 	}
@@ -440,8 +444,11 @@ start_vm()
 		if (gb_cart.cart_wram_bank!=NULL)
 			free(gb_cart.cart_wram_bank);
 	}
-	close(boot_fd);
-	close(rom_fd);
+
+	/* Release resources */
+	if (use_boot_rom)
+		fclose(boot_file);
+	fclose(rom_file);
 	vid_reset();
 	snd_reset();
 	gddb_reset();
