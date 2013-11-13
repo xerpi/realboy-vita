@@ -5735,13 +5735,10 @@ proc_ints()
 				*ptr_stack_wd = (regs_sets.regs[PC].UWord); // XXX
 				pc = (Uint8 *)(ints_offs[indx] + (addr_sp_ptrs[ints_offs[indx]>>12]));
 				regs_sets.regs[PC].UWord = ints_offs[indx];
-
-
 			}
 		}
 	}
 }
-
 /*
  * Execution routine.
  */

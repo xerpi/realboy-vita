@@ -1,4 +1,6 @@
-RealBoy is a free, fast, yet accurate, Game Boy/Game Boy Color emulator, with technical as well as educational goals.
+RealBoy is a Free, Fast, Yet Accurate, Game Boy/Game Boy Color Emulator for Linux/Unix.
+It has both technical as well as educational goals.
+
 Technically, it aims for the following:
 
 1) Accuracy. Perhaps the most important technical goal, as seen in the best closed-sourced emulators, such as KiGB and BGB, and some free emulators, such as Gambatte and MESS.
@@ -33,11 +35,13 @@ RealBoy is distributed with Autotools-derived scripts, so compiling is just a ma
 
 ./configure --disable-asm (Force compiling the C instead of Assembly code for x86_64 architectures. By default, the configure script chooses the Assembly sources automatically on these processors.)
 
+
 System requirements
 -------------------
 
 - POSIX-compliant Operating System (Linux, *BSD, Mac OS X, Solaris, etc)
 - SDL library (Generally installed from your packet manager, or download and compile from source from http://www.libsdl.org)
+
 
 Key combinations during emulation
 ---------------------------------
@@ -50,11 +54,26 @@ Key combinations during emulation
 - Key '7': Stop execution and launch GDDB debugger
 - Key 'Esc': Quit RealBoy
 
+
+Configuration Directory
+-------
+When executed for the first time, RealBoy will create the directory '.realboy' in the user's home directory.
+Here RealBoy creates and maintains save files.
+In the future this directory will also hold a configuration file.
+
+
+Boot ROMS
+-------
+Both Game Boy and Game Boy Color execute a small program at startup (the moment when you power on the console). RealBoy is able to start emulation from here but, for legal reasons, don't include the boot files and skip their execution by default.
+If you are feeling nostalgic and want to use the boot ROMS, first you must get them somewhere (they can easily be found by googling). Next you must go to the Configuration Directory created by RealBoy in your home directory ('.realboy'), create a directory named 'boot_roms' and copy the files over there (Game Boy boot ROM must be called 'dmg_boot.bin'; Game Boy Color boot ROM must be called 'gbc_boot.bin'. Finally, when executing RealBoy, the parameter '-b' must be passed in order to tell RealBoy to attempt executing the boot ROM.
+
+
 Contact
 -------
 Any question, suggestion or bug report can be sent to Sergio.G.DelReal@gmail.com. People are welcome to join the project and help meet the goals established at the beginning of this README.
 Visit http://realboyemulator.wordpress.com for more information.
 
+
 Special Thanks
 --------------
-Mathieu Peponas from gngb for kindly answering an email, gngb, MESS, VisualBoyAdvance, SDL, SDL_gfx, GNU GCC, GNU Autotools.
+Mathieu Peponas from gngb for kindly answering an email, gngb, MESS, VisualBoyAdvance, SDL, SDL_gfx.

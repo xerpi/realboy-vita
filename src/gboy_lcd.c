@@ -30,16 +30,8 @@ Uint32 pal_cur_indx;
 Uint16 spr_pal[8][4];
 Uint16 bg_pal[8][4];
 
-/* Imported/External function. Defined in SDL_rotozoom.c */
-extern SDL_Surface *_zoomSurfaceRGBA();
-
 /* Imported/External variables. Defined in gboy_video.c */
-extern SDL_Surface *x1;
-extern SDL_Surface *x2;
-extern SDL_Surface *x3;
-extern SDL_Surface *x4;
-extern SDL_Surface *zoomS;
-
+extern SDL_Surface *back;
 
 struct spr_attr {
 	Sint16 x;

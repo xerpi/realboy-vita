@@ -86,11 +86,13 @@ do_spr_pal_wr(Uint8 val)
 
 	*ptr_spr_pal=val;
 
+	addr_sp[0xff6b] = val;
 	if (spr_pal_inc_indx)
 	{
 		spr_pal_cur_indx++;
+		spr_pal_cur_indx &= 0x3f;
 		/* Keep bits 8 and 7; increment bits 1-6 */
-		addr_sp[0xff6a] = (addr_sp[0xff6a]&0xc0)|((addr_sp[0xff6a]&0x3f)+1);
+		addr_sp[0xff6a] = spr_pal_cur_indx|0x80;
 	}
 }
 
@@ -103,11 +105,13 @@ do_back_pal_wr(Uint8 val)
 
 	*ptr_bg_pal=val;
 
+	addr_sp[0xff69] = val;
 	if (pal_inc_indx)
 	{
 		pal_cur_indx++;
+		pal_cur_indx &=0x3f;
 		/* Keep bits 8 and 7; increment bits 1-6 */
-		addr_sp[0xff68] = (addr_sp[0xff68]&0xc0)|((addr_sp[0xff68]&0x3f)+1);
+		addr_sp[0xff68] = pal_cur_indx|0x80;
 	}
 }
 
@@ -120,12 +124,14 @@ do_spr_pal(Uint8 val)
 		spr_pal_inc_indx=0;
 
 	spr_pal_cur_indx=val&0x3f;
+	addr_sp[0xff6a] = val&0xbf;
 
 	/* XXX Hack so byte can be read from background palette with existing code */
 	char *ptr_spr_pal = (char *)(*spr_pal);
 	ptr_spr_pal+=spr_pal_cur_indx;
 	addr_sp[0xff6b] = *ptr_spr_pal; // write byte from palette to register
 }
+
 static void
 do_back_pal(Uint8 val)
 {
@@ -135,6 +141,7 @@ do_back_pal(Uint8 val)
 		pal_inc_indx=0;
 
 	pal_cur_indx=val&0x3f;
+	addr_sp[0xff68] = val&0xbf;
 
 	/* XXX Hack so byte can be read from background palette with existing code */
 	char *ptr_bg_pal = (char *)(*bg_pal);
@@ -719,7 +726,7 @@ io_ctrl(Uint8 io_off, Uint8 io_new)
 		case 0x68:
 			if (gboy_mode==1) // CGB ONLY
 				do_back_pal(io_new);
-			break;
+			return;
 		case 0x69:
 			if (gboy_mode==1) // CGB ONLY
 				do_back_pal_wr(io_new);
@@ -727,7 +734,7 @@ io_ctrl(Uint8 io_off, Uint8 io_new)
 		case 0x6a:
 			if (gboy_mode==1) // CGB ONLY
 				do_spr_pal(io_new);
-			break;
+			return;
 		case 0x6b:
 			if (gboy_mode==1) // CGB ONLY
 				do_spr_pal_wr(io_new);
