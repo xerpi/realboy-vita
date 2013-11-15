@@ -1,3 +1,10 @@
+2013-11-15	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
+Version 0.1.4
+	* gboy_keys.c: Added this file to the project for changing key bindings.
+	* gboy_conf.c: Added this file to the project for handling the new Configuration File.
+	* Makefile.am: Added new files for compilation.
+	* Code improvement: LOTS of code cleanups and improvements.
+
 2013-11-12	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
 Version 0.1.3
 	* gboy_cpu.c: Crucial fix to be able to exit RealBoy when using the C core.
