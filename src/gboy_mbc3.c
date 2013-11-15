@@ -28,6 +28,8 @@
  */
 
 #include "gboy.h"
+extern FILE *open_save_try(char *);
+extern FILE *create_save(char *);
 extern char *file_path;
 extern long addr_sp_ptrs[0x10]; // pointer to address spaces
 extern long *addr_sp_bases[0x10]; // pointers to bases
@@ -119,9 +121,9 @@ mbc3_read_rtc()
 	strncpy(rtc_fname+i, "rtc", 5);
 
 	/* Try to open RTC file */
-	if ((gb_cart.cart_rtc_fd = fopen(rtc_fname, "r+")) == NULL) {
+	if ( (gb_cart.cart_rtc_fd = open_save_try(rtc_fname)) == NULL) {
 		/* There is no RTC file; create one */
-		gb_cart.cart_rtc_fd = fopen(rtc_fname, "w+");
+		gb_cart.cart_rtc_fd = create_save(rtc_fname);
 		fwrite(&gb_mbc.mbc_rtc_last, 1, 5+(sizeof(time_t)), gb_cart.cart_rtc_fd);
 		mbc3_1st_rtc();
 	}

@@ -37,9 +37,31 @@ extern SDL_Surface *_zoomSurfaceRGBA(SDL_Surface *, SDL_Surface *, int, int, int
 extern SDL_Surface *back;
 
 void
+vid_set_fullscreen()
+{
+	fullscreen = SDL_FULLSCREEN;
+}
+
+void
+vid_no_fullscreen()
+{
+	fullscreen = 0;
+}
+
+int
+vid_is_fullscreen()
+{
+	if (fullscreen==SDL_FULLSCREEN)
+		return 1;
+	else
+		return 0;
+}
+
+void
 vid_scale(Uint32 scale_factor)
 {
-	screen = SDL_SetVideoMode(160*scale_factor, 144*scale_factor, 32, SDL_RESIZABLE|fullscreen);
+	if (screen != NULL)
+		screen = SDL_SetVideoMode(160*scale_factor, 144*scale_factor, 32, SDL_RESIZABLE|fullscreen);
 	scale = scale_factor;
 }
 
@@ -136,16 +158,18 @@ vid_start()
 	atexit(SDL_Quit);
 
 	back = SDL_CreateRGBSurface(SDL_SWSURFACE, 160, 146, 32, 0, 0, 0, 0);
-	screen = SDL_SetVideoMode(160, 144, 32, SDL_RESIZABLE);
 	switch (scale) {
+			case 1:
+				screen = SDL_SetVideoMode(160, 144, 32, SDL_RESIZABLE|fullscreen);
+				break;
 			case 2:
-				screen = SDL_SetVideoMode(160*2, 144*2, 32,SDL_RESIZABLE|fullscreen);
+				screen = SDL_SetVideoMode(160*2, 144*2, 32, SDL_RESIZABLE|fullscreen);
 				break;
 			case 3:
-				screen = SDL_SetVideoMode(160*3, 144*3, 32,SDL_RESIZABLE|fullscreen);
+				screen = SDL_SetVideoMode(160*3, 144*3, 32, SDL_RESIZABLE|fullscreen);
 				break;
 			case 4:
-				screen = SDL_SetVideoMode(160*4, 144*4, 32,SDL_RESIZABLE|fullscreen);
+				screen = SDL_SetVideoMode(160*4, 144*4, 32, SDL_RESIZABLE|fullscreen);
 				break;
 	}
 

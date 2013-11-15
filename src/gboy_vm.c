@@ -59,6 +59,9 @@ extern long gb_hblank_clks;
 extern long addr_sp_ptrs[0x10];
 
 /* Defined in globals.c */
+extern FILE *open_save_try(char *);
+extern FILE *create_save(char *);
+extern void rom_exec(int);
 extern void rom_exec(int);
 extern void mbc_init(int);
 extern Uint32 gboy_mode;
@@ -340,10 +343,10 @@ alloc_addr_sp()
  		/* Allocate space for RAM banks */
 		gb_cart.cart_ram_banks = malloc(1024*gb_cart.cart_ram_size);
 		/* Try to open RAM file */
-		if ((gb_cart.cart_ram_fd=fopen(save_name, "r+"))==NULL)
+		if ( (gb_cart.cart_ram_fd=open_save_try(save_name)) == NULL)
 		{
 			/* There is no RAM file; create one */
-			gb_cart.cart_ram_fd = fopen(save_name, "w+");
+			gb_cart.cart_ram_fd = create_save(save_name);
 			fwrite(gb_cart.cart_ram_banks, 1, 1024*gb_cart.cart_ram_size, gb_cart.cart_ram_fd);
 		}
 		/* There exists a RAM file, so read it to RAM space */

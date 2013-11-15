@@ -33,6 +33,12 @@ static useconds_t u_ref;
 static useconds_t u_frm=1000000/60; // microseconds per frame
 
 void
+set_fps(int fps)
+{
+	frames_per_second=fps;
+}
+
+void
 frame_reset()
 {
 	base.tv_sec=0;

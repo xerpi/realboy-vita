@@ -18,90 +18,109 @@
 
 #include "gboy.h"
 Uint32 key_bitmap;
+extern SDLKey key_binds_SDL[4]; // Array of SDL keybindings. In order: A, B, Start, Select.
 extern void vid_scale(Uint32);
+extern int vid_is_fullscreen();
 
 long
 joy_event(SDL_KeyboardEvent *key, Uint32 type)
 {
-
 	if (type == SDL_KEYDOWN) {
-		switch (key->keysym.sym) {
-			case SDLK_RETURN:
-				key_bitmap|=RET_MASK;
-				break;
-			case SDLK_d:
+		if (key->keysym.sym == key_binds_SDL[0])
 				key_bitmap|=D_MASK;
-				break;
-			case SDLK_s:
+		else if (key->keysym.sym == key_binds_SDL[1])
 				key_bitmap|=S_MASK;
-				break;
-			case SDLK_a:
+		else if (key->keysym.sym == key_binds_SDL[2])
+				key_bitmap|=RET_MASK;
+		else if (key->keysym.sym == key_binds_SDL[3])
 				key_bitmap|=A_MASK;
-				break;
-			case SDLK_UP:
-				key_bitmap|=UP_MASK;
-				break;
-			case SDLK_DOWN:
-				key_bitmap|=DOWN_MASK;
-				break;
-			case SDLK_LEFT:
-				key_bitmap|=LEFT_MASK;
-				break;
-			case SDLK_RIGHT:
-				key_bitmap|=RIGHT_MASK;
-				break;
-			case SDLK_1:
-				vid_scale(1);
-				break;
-			case SDLK_2:
-				vid_scale(2);
-				break;
-			case SDLK_3:
-				vid_scale(3);
-				break;
-			case SDLK_4:
-				vid_scale(4);
-				break;
-			case SDLK_5:
-				vid_toggle_aalias();
-				break;
-			case SDLK_ESCAPE:
-				key_bitmap=0;
-				return 1;
-			case SDLK_7:
-				gddb_start();
-				break;
-			case SDLK_6:
-				vid_toggle_fullscreen();
-				break;
+		else {
+			switch (key->keysym.sym) {
+				case SDLK_UP:
+					key_bitmap|=UP_MASK;
+					break;
+				case SDLK_DOWN:
+					key_bitmap|=DOWN_MASK;
+					break;
+				case SDLK_LEFT:
+					key_bitmap|=LEFT_MASK;
+					break;
+				case SDLK_RIGHT:
+					key_bitmap|=RIGHT_MASK;
+					break;
+				case SDLK_1:
+					vid_scale(1);
+					break;
+				case SDLK_2:
+					vid_scale(2);
+					break;
+				case SDLK_3:
+					vid_scale(3);
+					break;
+				case SDLK_4:
+					vid_scale(4);
+					break;
+				case SDLK_5:
+					vid_toggle_aalias();
+					break;
+				case SDLK_6:
+					vid_toggle_fullscreen();
+					break;
+				case SDLK_7:
+					if (vid_is_fullscreen()) {
+						vid_toggle_fullscreen();
+						printf("\n\n========================================================================\n");
+						printf("FULLSCREEN HAS BEEN DISABLED TO STAR GDDB DEBUGGER\n");
+						printf("Press any key to start GDDB\n");
+						getch();
+						gddb_start();
+					}
+					else
+						gddb_start();
+					break;
+				case SDLK_8:
+					if (vid_is_fullscreen()) {
+						vid_toggle_fullscreen();
+						printf("\n\n========================================================================\n");
+						printf("FULLSCREEN WILL BE RESTORED WHEN KEY BINDING CONFIGURATION IS FINISHED\n");
+						printf("Press any key to begin configuration\n");
+						getch();
+						joy_chbinds();
+						vid_toggle_fullscreen();
+					}
+					else
+						joy_chbinds();
+					break;
+				case SDLK_ESCAPE:
+					key_bitmap=0;
+					return 1;
+			}
 		}
 	}
 	else if (type == SDL_KEYUP) {
-		switch (key->keysym.sym) {
-			case SDLK_UP:
-				key_bitmap&=~UP_MASK;
-				break;
-			case SDLK_DOWN:
-				key_bitmap&=~DOWN_MASK;
-				break;
-			case SDLK_LEFT:
-				key_bitmap&=~LEFT_MASK;
-				break;
-			case SDLK_RIGHT:
-				key_bitmap&=~RIGHT_MASK;
-				break;
-			case SDLK_a:
-				key_bitmap&=~A_MASK;
-				break;
-			case SDLK_s:
-				key_bitmap&=~S_MASK;
-				break;
-			case SDLK_d:
+		if (key->keysym.sym == key_binds_SDL[0])
 				key_bitmap&=~D_MASK;
-				break;
-			case SDLK_RETURN:
+		else if (key->keysym.sym == key_binds_SDL[1])
+				key_bitmap&=~S_MASK;
+		else if (key->keysym.sym == key_binds_SDL[2])
 				key_bitmap&=~RET_MASK;
-				break;
+		else if (key->keysym.sym == key_binds_SDL[3])
+				key_bitmap&=~A_MASK;
+		else {
+			switch (key->keysym.sym) {
+				case SDLK_UP:
+					key_bitmap&=~UP_MASK;
+					break;
+				case SDLK_DOWN:
+					key_bitmap&=~DOWN_MASK;
+					break;
+				case SDLK_LEFT:
+					key_bitmap&=~LEFT_MASK;
+					break;
+				case SDLK_RIGHT:
+					key_bitmap&=~RIGHT_MASK;
+					break;
+			}
 		}
 	}
 

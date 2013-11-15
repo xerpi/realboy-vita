@@ -45,6 +45,13 @@ System requirements
 
 Key combinations during emulation
 ---------------------------------
+The following is the default key bindings:
+- Key 'Enter': Start
+- Key 'a': Select
+- Key 'd': A
+- Key 's': B
+
+Anytime during emulation the following also applies:
 - Key '1': Video scale 1x
 - Key '2': Video scale 2x
 - Key '3': Video scale 3x

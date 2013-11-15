@@ -18,18 +18,14 @@
 
 #include "gboy.h"
 /* External symbols */
-extern char *home_path;
 extern char *file_path;
 extern int use_boot_rom;
 extern Uint32 scale;
 extern Uint32 fullscreen;
 extern int frames_per_second;
 extern int start_vm();
-extern void change_cur_dir(char *);
-extern int search_file_dir(char *, char *);
-extern char *get_home_path();
-extern void create_dir(char *, Uint32);
-
+extern void vid_scale(int);
+extern void set_fps(int);
 
 /* Locally-global variables*/
 struct option options[] = {
@@ -76,6 +72,14 @@ main(int argc, char *argv[])
 		return 0;
 	}
 
+	if (optind < argc) {
+		if ( (rom_file=fopen(argv[optind], "r")) == NULL)
+			perror(argv[optind]);
+		else
+			file_path = strndup(argv[optind], 256);
+	}
+	init_conf();
+
 	/* Parse arguments. */
 	int op;
 	do {
@@ -84,21 +88,21 @@ main(int argc, char *argv[])
 		switch (op) {
 			/* Video */
 			case '2':
-					scale=2;
+					vid_scale(2);
 					break;
 			case '3':
-					scale=3;
+					vid_scale(3);
 					break;
 			case '4':
-					scale=4;
+					vid_scale(4);
 					break;
 			case 'f':
-					fullscreen=1;
+					vid_toggle_fullscreen();
 					break;
 			case 'r':
 					arg = atoi(optarg);
 					if (arg >= 10 && arg <= 60)
-						frames_per_second = arg;
+						set_fps(arg);
 					else
 						printf("Bad argument for frame rate; defaulting to 60fps\n");
 					break;
@@ -116,7 +120,7 @@ main(int argc, char *argv[])
 				break;
 			/* Print current version and exit */
 			case 'v':
-				printf("RealBoy 0.1.3\n\n");
+				printf("RealBoy 0.1.4\n\n");
 				break;
 			default:
 				break;
@@ -124,34 +128,7 @@ main(int argc, char *argv[])
 		}
 	} while (op != -1);
 
-	if (optind < argc) {
-		if ( (rom_file=fopen(argv[optind], "r")) == NULL)
-			perror(argv[optind]);
-		else
-			file_path = strndup(argv[optind], 256);
-	}
 
-	/* Get HOME path */
-	home_path = get_home_path();
-
-	/* Change working directory to HOME */
-	change_cur_dir(home_path);
-
-	/* Search for configuration directory */
-	int found_file;
-	found_file = search_file_dir(".realboy", home_path);
-
-	/* Create configuration directory if it doesn't exist */
-	if (!found_file) {
-		printf("\n----------------------------\n");
-		printf("One-time action: \n");
-		printf("----------------------------\n");
-		printf("Creating configuration directory in %s\n", home_path);
-		create_dir(".realboy", 0755);
-		printf("Created directory %s%s\n\n", home_path, "/.realboy");
-	}
-	change_cur_dir(".realboy");
-	
 	if (rom_file != NULL)	{
 		int ret_val; // value returned from emulation
 		/* Start Virtual Machine */
