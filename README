@@ -45,13 +45,13 @@ System requirements
 
 Key combinations during emulation
 ---------------------------------
-The following is the default key bindings:
+The following is the default, configurable, key bindings (you can change key bindings on-the-fly pressing key '8', or make changes permanently configuring the Configuration File (see below)):
 - Key 'Enter': Start
 - Key 'a': Select
 - Key 'd': A
 - Key 's': B
 
-Anytime during emulation the following also applies:
+The following is the default, non-configurable, key bindings:
 - Key '1': Video scale 1x
 - Key '2': Video scale 2x
 - Key '3': Video scale 3x
@@ -59,7 +59,7 @@ Anytime during emulation the following also applies:
 - Key '5': Enable/disable antialiasing
 - Key '6': Enable/disable fullscreen
 - Key '7': Stop execution and launch GDDB debugger
-- Key '8': Change key bindings (to change key bindings permanently, change the Configuration File instead (see below))
+- Key '8': Change configurable key bindings (to make changes permanent, change the Configuration File instead (see below))
 - Key 'Esc': Quit RealBoy
 
 
