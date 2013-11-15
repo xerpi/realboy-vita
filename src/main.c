@@ -137,7 +137,7 @@ main(int argc, char *argv[])
 		if (ret_val == -1)
 			printf("File not a gb binary\n\n");
 		else
-			printf("\nThanks for using RealBoy!\n\n");
+			printf("\nThank you for using RealBoy!\n\n");
 	}
 
 	return 0;

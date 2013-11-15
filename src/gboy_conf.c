@@ -17,11 +17,14 @@
  */
 
 #include "gboy.h"
-static const char default_conf[] = "# RealBoy Configuration File.\n\n# Key mappings\nA='d'\nB='s'\nStart='\\n'\nSelect='a'\n\n# Frame rate setting. Values are from 10 to 60 inclusive.\nframe_rate=60\n\n# Video Scale: 1x, 2x, 3x, 4x.\nvideo_scale=1\n\n# Use fullscreen mode. 0=false, any other value means true\nvideo_fullscreen=0\n\n# Use boot ROM. 0=false, any other value means true\nboot_rom=0\n\n# Game Boy type. 0=Auto, 1=Force DMG, 2=Force CGB\ngboy_type=1";
+/* Globally local variables */
+static const char default_conf[] = "# RealBoy Configuration File.\n\n# Key mappings\nA='d'\nB='s'\nStart='\\n'\nSelect='a'\n\n# Frame rate setting. Values are from 10 to 60 inclusive.\nframe_rate=\"60\"\n\n# Video Scale: 1x, 2x, 3x, 4x.\nvideo_scale=\"1\"\n\n# Use fullscreen mode. 0=false, any other value means true\nvideo_fullscreen=\"0\"\n\n# Use boot ROM. 0=false, any other value means true\nboot_rom=\"0\"\n\n# Game Boy type. 0=Auto, 1=Force DMG, 2=Force CGB\ngboy_type=\"0\"";
 static const char *conf_opts[] = { "A", "B", "Start", "Select", "frame_rate", "video_scale", "video_fullscreen", "boot_rom", "gboy_type", NULL };
 static FILE *file_conf;
-extern int use_boot_rom;
+
+/* External symbols */
 extern Uint32 gboy_mode;
+extern int use_boot_rom;
 extern char *home_path;
 extern void vid_scale(Uint32);
 extern void set_fps(int);
@@ -31,36 +34,25 @@ extern void change_cur_dir(char *);
 extern int search_file_dir(char *, char *);
 extern char *get_home_path();
 extern void create_dir(char *, Uint32);
+extern int skip_line(char *, int);
+extern int skip_blanks(char *, int);
 
 /*
- * Skips current line in 'str' starting at offset 'off'.
- * Returns offset to first character of next line.
+ * If something goes wrong with Configuration File, just revert
+ * to defaults.
  */
-static int
-skip_line(char *str, int off)
+static void
+apply_conf_defs()
 {
-	while (str[off] != '\n') {
-		off++;
-		if (str[off] == '\0')
-			return off;
-	}
-	while (str[off] == '\n')
-		off++;
-
-	return off;
-}
-
-/*
- * Skips blank characters in 'str' starting at offset 'off'.
- * Returns offset to first non-blank character.
- */
-static int
-skip_blanks(char *str, int off)
-{
-	while (isspace(str[off]))
-		off++;
-
-	return off;
+	joy_remap('d', 0);
+	joy_remap('s', 1);
+	joy_remap('\n', 2);
+	joy_remap('a', 3);
+	set_fps(60);
+	vid_scale(1);
+	vid_no_fullscreen();
+	use_boot_rom=0;
+	gboy_mode=0;
 }
 
 static int
@@ -179,20 +171,6 @@ do_conf(char *str, int off)
 }
 
 static void
-apply_conf_defs()
-{
-	joy_remap('d', 0);
-	joy_remap('s', 1);
-	joy_remap('\n', 2);
-	joy_remap('a', 3);
-	set_fps(60);
-	vid_scale(1);
-	vid_no_fullscreen();
-	use_boot_rom=0;
-	gboy_mode=0;
-}
-
-static void
 parse_conf(char *conf_str)
 {
 	int i, valid;
@@ -225,11 +203,15 @@ apply_conf()
 	long file_size;
 	char *conf_str;
 
-	file_conf = fopen("RealBoy.conf", "r+");
+	if ( (file_conf = fopen("RealBoy.conf", "r+")) == NULL)
+		perror("fopen()");
 	file_size = get_file_size(file_conf);
 
-	conf_str = malloc(file_size+1);
-	fread(conf_str, 1, file_size, file_conf);
+	if ( (conf_str = malloc(file_size+1)) == NULL)
+		perror("malloc()");
+	if ( (fread(conf_str, 1, file_size, file_conf)) == 0)
+		perror("fread()");
+
 	conf_str[file_size] = '\0';
 
 	parse_conf(conf_str);
@@ -250,12 +232,11 @@ init_conf()
 
 	/* Create configuration directory if it doesn't exist */
 	if (!found_file) {
-		printf("\n----------------------------\n");
-		printf("One-time action: \n");
-		printf("----------------------------\n");
-		printf("Creating configuration directory in %s\n", home_path);
+		printf("\n**********************************\n");
+		printf("Configuration Directory not found...\n");
 		create_dir(".realboy", 0755);
-		printf("Created directory %s%s\n\n", home_path, "/.realboy");
+		printf("Configuration Directory Created %s%s\n", home_path, "/.realboy");
+		printf("**********************************\n");
 	}
 	else
 		printf("\n\nFound Configuration Directory %s%s\n", home_path, "/.realboy");
@@ -265,12 +246,11 @@ init_conf()
 	found_file = search_file_dir("saves", ".");
 	/* Create saves directory if it doesn't exist */
 	if (!found_file) {
-		printf("\n----------------------------\n");
-		printf("One-time action: \n");
-		printf("----------------------------\n");
-		printf("Creating saves directory in %s\n", ".realboy");
+		printf("\n**********************************\n");
+		printf("Saves Directory not found...\n");
 		create_dir("saves", 0755);
-		printf("Created directory %s\n\n", "saves");
+		printf("Saves Directory Created %s%s\n", home_path, "/.realboy/saves");
+		printf("**********************************\n");
 	}
 	else
 		printf("Found Saves Directory %s%s\n", home_path, "/.realboy/saves");
@@ -279,15 +259,14 @@ init_conf()
 	found_file = search_file_dir("RealBoy.conf", ".");
 	/* Create default configuration file if it doesn't exist */
 	if (!found_file) {
-		printf("\n----------------------------\n");
-		printf("One-time action: \n");
-		printf("----------------------------\n");
-		printf("Creating default configuration file in %s\n", ".realboy");
-		file_conf = fopen("RealBoy.conf", "w+");
-		printf("Created file %s\n\n", "RealBoy.conf");
+		printf("\n**********************************\n");
+		printf("Configuration File not found...\n");
+		if ( (file_conf = fopen("RealBoy.conf", "w+")) == NULL)
+			perror("fopen()");
+		printf("Configuration File Created %s%s\n", home_path, "/.realboy/RealBoy.conf");
 		if ( (fwrite(default_conf, 1, strnlen(default_conf, 1000), file_conf)) == 0)
 			perror("fwrite()");
-		printf("\n");
+		printf("**********************************\n");
 	}
 	else {
 		printf("Found Configuration File %s%s\n", home_path, "/.realboy/RealBoy.conf");

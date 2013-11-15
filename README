@@ -59,14 +59,13 @@ Anytime during emulation the following also applies:
 - Key '5': Enable/disable antialiasing
 - Key '6': Enable/disable fullscreen
 - Key '7': Stop execution and launch GDDB debugger
+- Key '8': Change key bindings (to change key bindings permanently, change the Configuration File instead (see below))
 - Key 'Esc': Quit RealBoy
 
 
 Configuration Directory
 -------
-When executed for the first time, RealBoy will create the directory '.realboy' in the user's home directory.
-Here RealBoy creates and maintains save files.
-In the future this directory will also hold a configuration file.
+When executed for the first time, RealBoy will create the Configuration Directory '.realboy' in the user's home directory. In it, RealBoy creates the Saves Directory 'saves'; RealBoy creates and maintains save files here. Finally, RealBoy creates a default and customizable Configuration File 'RealBoy.conf'.
 
 
 Boot ROMS

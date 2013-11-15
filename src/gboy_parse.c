@@ -20,6 +20,38 @@
 extern struct cmd_stack *cmd_tail; // pointer to the last command
 void (*gboy_last_func)(int, char **) = 0;
 
+/*
+ * Skips current line in 'str' starting at offset 'off'.
+ * Returns offset to first character of next line, or
+ * offset to end of string.
+ */
+int
+skip_line(char *str, int off)
+{
+	while (str[off] != '\n') {
+		off++;
+		if (str[off] == '\0')
+			return off;
+	}
+	while (str[off] == '\n')
+		off++;
+
+	return off;
+}
+
+/*
+ * Skips blank characters in 'str' starting at offset 'off'.
+ * Returns offset to first non-blank character.
+ */
+int
+skip_blanks(char *str, int off)
+{
+	while (isspace(str[off]))
+		off++;
+
+	return off;
+}
+
 int
 gboy_exec_strs(int num_cmds, const char * const gboy_cmds[], 
 							 void (*gboy_funcs[])(int, char **))
