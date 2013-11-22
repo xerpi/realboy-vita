@@ -262,7 +262,7 @@ alloc_addr_sp()
 {
 	/* Map addresses starting with 0x0, 0x1, ..., 0xf to default address space */
 	int i;
-	for (i=0; i<=16; i++)
+	for (i=0; i<16; i++)
 		addr_sp_ptrs[i] = (long)addr_sp;
 
 	/* Allocate space for rom banks */

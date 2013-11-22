@@ -33,6 +33,18 @@ static useconds_t u_ref;
 static useconds_t u_frm=1000000/60; // microseconds per frame
 
 void
+frame_speeddown()
+{
+	u_frm = 1000000/60;
+}
+
+void
+frame_speedup()
+{
+	u_frm = 1000000/10000;
+}
+
+void
 set_fps(int fps)
 {
 	frames_per_second=fps;

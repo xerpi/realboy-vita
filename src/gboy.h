@@ -176,7 +176,7 @@ struct gb_cart {
 struct gb_mbc {
 	void (*mbc_funcs[10])(int); // MBC generic functions
 	time_t mbc_rtc_last;
-	char mbc_rtc_regs[5]; // MBC3 RTC's registers
+	long mbc_rtc_regs[5]; // MBC3 RTC's registers
 	char mbc_rtc_latch;
 	char mbc_ram_rom_mode;
 	char mbc_ram_rom_upp;

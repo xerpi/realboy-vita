@@ -320,8 +320,8 @@ render_back(Uint32 *buf)
 		tile_num = ptr_map[x1++&0x1f];
 		if (!(addr_sp[0xff40]&0x10))
 			tile_num = 256 + (signed char)tile_num;
-		ptr_data = addr_sp+0x8000+(tile_num<<4);
-		ptr_data+=(y&7)<<1;
+		ptr_data = addr_sp+0x8000+(tile_num<<4); // point to tile; each tile is 8*8*2=128 bits=16 bytes
+		ptr_data+=(y&7)<<1; // point to row in tile depending on LY and SCROLL Y; each row is 8*2=16 bits=2 bytes
 		for (; j<8 && (x+j)<168; shftr--, j++) {
 			indx = ((ptr_data[0]>>shftr)&1)|((((ptr_data[1]>>shftr))&1)<<1);
 			buf[i] = pal_grey[(addr_sp[0xff47]>>(indx<<1))&3];
@@ -347,7 +347,7 @@ render_scanline(long skip)
 	if ((addr_sp[0xff40]&1))
 	{
 		if (gboy_mode==0)
-			render_back(buf);
+  			render_back(buf);
 		else
 			render_back_cgb(buf);
 	}
@@ -356,7 +356,7 @@ render_scanline(long skip)
 	if ((addr_sp[0xff40]&0x20) && ((addr_sp[0xff4b]) < 166) && (addr_sp[0xff44] >= addr_sp[0xff4a]))
 	{
 		if (gboy_mode==0)
-			render_win(buf);
+  			render_win(buf);
 		else
 			render_win_cgb(buf);
 	}

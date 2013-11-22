@@ -124,12 +124,12 @@ mbc3_read_rtc()
 	if ( (gb_cart.cart_rtc_fd = open_save_try(rtc_fname)) == NULL) {
 		/* There is no RTC file; create one */
 		gb_cart.cart_rtc_fd = create_save(rtc_fname);
-		fwrite(&gb_mbc.mbc_rtc_last, 1, 5+(sizeof(time_t)), gb_cart.cart_rtc_fd);
+		fwrite(&gb_mbc.mbc_rtc_last, 1, ((5*sizeof(long))+sizeof(time_t)), gb_cart.cart_rtc_fd);
 		mbc3_1st_rtc();
 	}
 	/* There exists a RTC file, so read it to RTC space */
 	else
-		fread(&gb_mbc.mbc_rtc_last, 1, 5+(sizeof(time_t)), gb_cart.cart_rtc_fd);
+		fread(&gb_mbc.mbc_rtc_last, 1, ((5*sizeof(long))+sizeof(time_t)), gb_cart.cart_rtc_fd);
 
 	free(rtc_fname);
 }
@@ -141,7 +141,7 @@ mbc3_ram_remap()
 		addr_sp_ptrs[0xa]=addr_sp_ptrs[0xb]=((long)((&gb_cart.cart_ram_banks[0x2000*gb_cart.cart_curam_bank])-0xa000));
 	}
 	else {
-		addr_sp_ptrs[0xa]=addr_sp_ptrs[0xb]=((long)((&gb_mbc.mbc_rtc_regs[gb_mbc.mbc_rtc_reg_sel-8])-0xa000));
+		addr_sp_ptrs[0xa]=addr_sp_ptrs[0xb]=((long)((&gb_mbc.mbc_rtc_regs[gb_mbc.mbc_rtc_reg_sel-8])-(0xa000/sizeof(long))));
 	}
 }
 
@@ -187,7 +187,7 @@ mbc3_ramtim_en(int val)
 		fwrite(gb_cart.cart_ram_banks, 1, 1024*gb_cart.cart_ram_size, gb_cart.cart_ram_fd);
 		if (gb_cart.cart_rtc_fd != NULL) {
 				rewind(gb_cart.cart_rtc_fd);
-				fwrite(&gb_mbc.mbc_rtc_last, 1, 5+(sizeof(time_t)), gb_cart.cart_rtc_fd);
+				fwrite(&gb_mbc.mbc_rtc_last, 1, ((5*sizeof(long))+sizeof(time_t)), gb_cart.cart_rtc_fd);
 		}
 	}
 }

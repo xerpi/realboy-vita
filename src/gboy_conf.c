@@ -162,6 +162,25 @@ do_conf(char *str, int off)
 				break;
 				}
 			case 8:
+				{
+				char num_ascii[2];
+				int toint;
+				if (str[off] != '\"' || str[off+2] != '\"' || !isdigit(str[off+1]))
+					return 0;
+				off++;
+				num_ascii[0] = str[off];
+				num_ascii[1] = '\0';
+				toint = atoi(num_ascii);
+				if (toint == 2)
+					gboy_mode=CGB;
+				else if (toint == 1)
+					gboy_mode=0;
+				else if (toint == 0)
+					;
+				else
+					return 0;
+				break;
+				}
 			case 9:
 				;
 		}

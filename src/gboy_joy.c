@@ -94,6 +94,9 @@ joy_event(SDL_KeyboardEvent *key, Uint32 type)
 				case SDLK_ESCAPE:
 					key_bitmap=0;
 					return 1;
+				case SDLK_PERIOD:
+					frame_speedup();
+					break;
 			}
 		}
 	}
@@ -119,6 +122,9 @@ joy_event(SDL_KeyboardEvent *key, Uint32 type)
 					break;
 				case SDLK_RIGHT:
 					key_bitmap&=~RIGHT_MASK;
+					break;
+				case SDLK_PERIOD:
+					frame_speeddown();
 					break;
 			}
 		}
