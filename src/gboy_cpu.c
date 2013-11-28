@@ -107,6 +107,8 @@ long gb_hblank_clks[2] = { 200, 200 };
 Sint32 gb_vram_clks[2] = { 176, 176 };
 static Uint8 *pc;
 extern Uint32 fullscreen;
+extern void mem_wr(Uint16, Uint8, Uint8 *);
+extern Uint8 mem_rd(Uint16, Uint8 *);
 
 /* 
  * Instruction format: 
@@ -198,22 +200,14 @@ op_ld_reg_reg(struct z80_set *rec)
 void
 op_ld_imm_mem(struct z80_set *rec)
 {
-	Uint8 imm;
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
+	Uint8 val = pc[1];
+
+	mem_wr(gb_addr, val, host_addr);
 
 	regs_sets.regs[PC].UWord += 2;
-	imm = pc[1];
 	pc += 2;
-
-	if ((regs_sets.regs[HL].UWord < 0xff80) && (regs_sets.regs[HL].UWord >= 0xff00))
-		io_ctrl(regs_sets.regs[HL].UWord&0xff, imm);
-
-	else if (regs_sets.regs[HL].UWord <= 0x7fff)
-		((gb_mbc).mbc_funcs[(regs_sets.regs[HL].UWord>>12)])((int)imm);
-	else {
-		Uint8 *ptr_tmp;
-		ptr_tmp = (Uint8 *)addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord;
-		*ptr_tmp = imm;
-	}
 }
 
 /* 
@@ -270,31 +264,23 @@ op_ld_imm_reg(struct z80_set *rec)
 void
 op_ld_reg_imm(struct z80_set *rec)
 {
-	Uint16 addr;
-	Uint8 *ptr_tmp;
-	Uint16 *ptr_tmp_wr;
+	Uint16 gb_addr = *((Uint16 *)(pc+1));
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+
+
 
 	switch (rec->length) {
 		case BYTE:
-				addr = *((Uint16 *)(pc+1));
-				if (addr >= 0xff00 && addr < 0xff80)
-					io_ctrl((Uint8)addr, regs_sets.regs[AF].UByte[A]);
-				else if (addr <= 0x7fff)
-					(gb_mbc.mbc_funcs[(addr>>12)])(regs_sets.regs[AF].UByte[A]);
-				else {
-					ptr_tmp = (Uint8 *)(addr_sp_ptrs[addr>>12]+addr);
-					*ptr_tmp = regs_sets.regs[AF].UByte[A];
+				{
+				Uint8 val = regs_sets.regs[AF].UByte[A];
+				mem_wr(gb_addr, val, host_addr);
 				}
 				break;
 		case WORD:
-				addr = *((Uint16 *)(pc+1));
-				if (addr >= 0xff00 && addr < 0xff80)
-					io_ctrl((Uint8)addr, regs_sets.regs[SP].UByte[0]);
-				else if (addr <= 0x7fff)
-					(gb_mbc.mbc_funcs[(addr>>12)])(regs_sets.regs[SP].UWord);
-				else {
-					ptr_tmp_wr = (Uint16 *)(addr_sp_ptrs[addr>>12]+addr);
-					*ptr_tmp_wr = regs_sets.regs[SP].UWord;
+				{
+				Uint16 val = regs_sets.regs[SP].UWord;
+				mem_wr(gb_addr, (Uint8)val, host_addr);
+				mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 				}
 				break;
 	}
@@ -310,19 +296,11 @@ void
 op_ld_reg_mem(struct z80_set *rec)
 {
 
-	Uint16 addr = (regs_sets.regs[rec->format[2]].UWord>>12);
+	Uint16 gb_addr = regs_sets.regs[rec->format[2]].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[rec->format[2]].UWord>>12]+regs_sets.regs[rec->format[2]].UWord);
+	Uint8 val = regs_sets.regs[rec->format[4]&0xfe].UByte[rec->format[4]&1];
 
-	if (regs_sets.regs[rec->format[2]].UWord >= 0xff00 && regs_sets.regs[rec->format[2]].UWord < 0xff80)
-		io_ctrl(regs_sets.regs[rec->format[2]].UWord&0xff, regs_sets.regs[rec->format[4]&0xfe].UByte[rec->format[4]&1]);
-
-	else if (regs_sets.regs[rec->format[2]].UWord < 0x7fff)
-		(gb_mbc.mbc_funcs[(regs_sets.regs[rec->format[2]].UWord>>12)])(regs_sets.regs[rec->format[4]&0xfe].UByte[rec->format[4]&1]);
-					
-	else {
-		Uint8 *dest;
-		dest = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[rec->format[2]].UWord>>12]+regs_sets.regs[rec->format[2]].UWord);
-		*dest = regs_sets.regs[rec->format[4]&0xfe].UByte[rec->format[4]&1];
-	}
+	mem_wr(gb_addr, val, host_addr);
 
 	pc++;
 	regs_sets.regs[PC].UWord++;
@@ -334,11 +312,12 @@ op_ld_reg_mem(struct z80_set *rec)
 void
 op_ld_mem_reg(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[rec->format[4]].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 
-	Uint8 *dest;
-
-	dest = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[rec->format[4]].UWord>>12]+regs_sets.regs[rec->format[4]].UWord);
-	regs_sets.regs[rec->format[2]&0xfe].UByte[rec->format[2]&1] = *dest;
+	Uint8 val; 
+	val = mem_rd(gb_addr, host_addr);
+	regs_sets.regs[rec->format[2]&0xfe].UByte[rec->format[2]&1] = val;
 
 	pc++;
 	regs_sets.regs[PC].UWord++;
@@ -350,20 +329,13 @@ op_ld_mem_reg(struct z80_set *rec)
 void
 op_ldd_reg_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
+	Uint8 val = regs_sets.regs[AF].UByte[A];
 
-	if (regs_sets.regs[HL].UWord >= 0xff00 && regs_sets.regs[HL].UWord < 0xff80)
-		io_ctrl(regs_sets.regs[HL].UWord&0xff, regs_sets.regs[AF].UByte[A]);
-
-	else if (regs_sets.regs[HL].UWord <= 0x7fff)
-		(gb_mbc.mbc_funcs[regs_sets.regs[HL].UWord>>12])(regs_sets.regs[AF].UByte[A]);
-	else {
-		Uint8 *dest;
-		dest = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-		*dest = regs_sets.regs[AF].UByte[A];
-	}
+	mem_wr(gb_addr, val, host_addr);
 
 	regs_sets.regs[HL].UWord--;
-
 	pc++;
 	regs_sets.regs[PC].UWord++;
 }
@@ -374,13 +346,14 @@ op_ldd_reg_mem(struct z80_set *rec)
 void
 op_ldd_mem_reg(struct z80_set *rec)
 {
-	Uint8 *dest;
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 
-	dest = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	regs_sets.regs[AF].UByte[A] = *dest;
+	Uint8 val; 
+	val = mem_rd(gb_addr, host_addr);
+	regs_sets.regs[AF].UByte[A] = val;
 
 	regs_sets.regs[HL].UWord--;
-
 	pc++;
 	regs_sets.regs[PC].UWord++;
 }
@@ -391,19 +364,13 @@ op_ldd_mem_reg(struct z80_set *rec)
 void
 op_ldi_reg_mem(struct z80_set *rec)
 {
-	if (regs_sets.regs[HL].UWord >= 0xff00 && regs_sets.regs[HL].UWord < 0xff80)
-		io_ctrl(regs_sets.regs[HL].UWord&0xff, regs_sets.regs[AF].UByte[A]);
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
+	Uint8 val = regs_sets.regs[AF].UByte[A];
 
-	else if (regs_sets.regs[HL].UWord <= 0x7fff)
-		(gb_mbc.mbc_funcs[regs_sets.regs[HL].UWord>>12])(regs_sets.regs[AF].UByte[A]);
-	else {
-		Uint8 *dest;
-		dest = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-		*dest = regs_sets.regs[AF].UByte[A];
-	}
+	mem_wr(gb_addr, val, host_addr);
 
 	regs_sets.regs[HL].UWord++;
-
 	pc++;
 	regs_sets.regs[PC].UWord++;
 }
@@ -414,13 +381,14 @@ op_ldi_reg_mem(struct z80_set *rec)
 void
 op_ldi_mem_reg(struct z80_set *rec)
 {
-	Uint8 *dest;
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 
-	dest = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	regs_sets.regs[AF].UByte[A] = *dest;
+	Uint8 val; 
+	val = mem_rd(gb_addr, host_addr);
+	regs_sets.regs[AF].UByte[A] = val;
 
 	regs_sets.regs[HL].UWord++;
-
 	pc++;
 	regs_sets.regs[PC].UWord++;
 }
@@ -431,13 +399,12 @@ op_ldi_mem_reg(struct z80_set *rec)
 void
 op_ld_imm_acc(struct z80_set *rec)
 {
-	Uint8 *dest;
-	Uint16 addr;
+	Uint16 gb_addr = *((Uint16 *)(pc+1));
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 
-	addr = *((Uint16 *)(pc+1));
-
-	dest = (Uint8 *)(addr_sp_ptrs[addr>>12]+addr);
-	regs_sets.regs[AF].UByte[A] = *dest;
+	Uint8 val; 
+	val = mem_rd(gb_addr, host_addr);
+	regs_sets.regs[AF].UByte[A] = val;
 
 	pc+=3;
 	regs_sets.regs[PC].UWord+=3;
@@ -449,10 +416,12 @@ op_ld_imm_acc(struct z80_set *rec)
 void
 op_ld_io_reg_reg(struct z80_set *rec)
 {
-	Uint8 *dest;
-	Uint16 addr;
+	Uint16 gb_addr = 0xff00+(regs_sets.regs[BC].UByte[0]);
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 
-	regs_sets.regs[AF].UByte[A]= addr_sp[0xff00+(regs_sets.regs[BC].UByte[0])];
+	Uint8 val; 
+	val = mem_rd(gb_addr, host_addr);
+	regs_sets.regs[AF].UByte[A] = val;
 
 	pc++;
 	regs_sets.regs[PC].UWord++;
@@ -464,10 +433,12 @@ op_ld_io_reg_reg(struct z80_set *rec)
 void
 op_ld_io_reg_imm(struct z80_set *rec)
 {
-	Uint8 *dest;
-	Uint16 addr;
+	Uint16 gb_addr = (*(pc+1))+0xff00;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 
-	regs_sets.regs[AF].UByte[A]= addr_sp[(*(pc+1))+0xff00];
+	Uint8 val; 
+	val = mem_rd(gb_addr, host_addr);
+	regs_sets.regs[AF].UByte[A] = val;
 
 	pc+=2;
 	regs_sets.regs[PC].UWord+=2;
@@ -480,7 +451,7 @@ void
 op_ld_reg_io_reg(struct z80_set *rec)
 {
 
-	io_ctrl(regs_sets.regs[BC].UByte[0], regs_sets.regs[AF].UByte[A]);
+	io_ctrl_wr(regs_sets.regs[BC].UByte[0], regs_sets.regs[AF].UByte[A]);
 
 	pc++;
 	regs_sets.regs[PC].UWord++;
@@ -492,7 +463,7 @@ op_ld_reg_io_reg(struct z80_set *rec)
 void
 op_ld_reg_io_imm(struct z80_set *rec)
 {
-	io_ctrl(*(pc+1), regs_sets.regs[AF].UByte[A]);
+	io_ctrl_wr(*(pc+1), regs_sets.regs[AF].UByte[A]);
 
 	pc+=2;
 	regs_sets.regs[PC].UWord+=2;
@@ -504,10 +475,14 @@ op_ld_reg_io_imm(struct z80_set *rec)
 void
 op_pop_af(struct z80_set *rec)
 {
-	Uint16 *dest;
+	Uint16 gb_addr = regs_sets.regs[SP].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 
-	dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-	regs_sets.regs[AF].UWord = *dest;
+	Uint16 val; 
+	val = ((Uint16)mem_rd(gb_addr+1, host_addr+1))<<8;
+	val = ((Uint16)mem_rd(gb_addr, host_addr)) | val;
+
+	regs_sets.regs[AF].UWord = val;
 	regs_sets.regs[AF].UWord &= (0xff00|F_HCARRY|F_CARRY|F_ZERO|F_SUBTRACT);
 	regs_sets.regs[SP].UWord += 2;
 
@@ -521,10 +496,14 @@ op_pop_af(struct z80_set *rec)
 void
 op_pop(struct z80_set *rec)
 {
-	Uint16 *dest;
+	Uint16 gb_addr = regs_sets.regs[SP].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 
-	dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-	regs_sets.regs[rec->format[2]].UWord = *dest;
+	Uint16 val; 
+	val = ((Uint16)mem_rd(gb_addr+1, host_addr+1))<<8;
+	val = ((Uint16)mem_rd(gb_addr, host_addr)) | val;
+
+	regs_sets.regs[rec->format[2]].UWord = val;
 	regs_sets.regs[SP].UWord += 2;
 
 	pc++;
@@ -538,11 +517,14 @@ op_pop(struct z80_set *rec)
 void
 op_push(struct z80_set *rec)
 {
-	Uint16 *dest;
-
 	regs_sets.regs[SP].UWord -= 2;
-	dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-	*dest = regs_sets.regs[rec->format[2]].UWord;
+
+	Uint16 val = regs_sets.regs[rec->format[2]].UWord;
+	Uint16 gb_addr = regs_sets.regs[SP].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+
+	mem_wr(gb_addr, (Uint8)val, host_addr);
+	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
 	pc++;
 	regs_sets.regs[PC].UWord++;
@@ -616,13 +598,14 @@ op_add_wr(struct z80_set *rec)
 void
 op_add_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 acc;
-	Uint8 sum;
-
 	acc = regs_sets.regs[AF].UByte[A];
-	sum = *(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	regs_sets.regs[AF].UByte[A] += sum;
+	Uint8 sum;
+	sum = mem_rd(gb_addr, host_addr);
 
+	regs_sets.regs[AF].UByte[A] += sum;
 	regs_sets.regs[AF].UByte[F] = 0;
 
 	if ((acc ^ sum ^ regs_sets.regs[AF].UByte[A])&0x10)
@@ -633,7 +616,6 @@ op_add_mem(struct z80_set *rec)
 
 	if (regs_sets.regs[AF].UByte[A] == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
-
 
 	pc++;
 	regs_sets.regs[PC].UWord++;
@@ -750,15 +732,18 @@ op_adc(struct z80_set *rec)
 void
 op_adc_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 acc;
+	acc = regs_sets.regs[AF].UByte[A];
 	Uint8 sum;
+	sum = mem_rd(gb_addr, host_addr);
+
 	Uint16 word;
-
-	acc = word = regs_sets.regs[AF].UByte[A];
-	sum = *(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
+	word = (Uint16)regs_sets.regs[AF].UByte[A];
 	word += sum + (regs_sets.regs[AF].UByte[F]&F_CARRY ? 1 : 0);
-	regs_sets.regs[AF].UByte[A] += sum + (regs_sets.regs[AF].UByte[F]&F_CARRY ? 1 : 0);
 
+	regs_sets.regs[AF].UByte[A] += sum + (regs_sets.regs[AF].UByte[F]&F_CARRY ? 1 : 0);
 	regs_sets.regs[AF].UByte[F] = 0;
 
 	if ((acc ^ sum ^ regs_sets.regs[AF].UByte[A])&0x10)
@@ -850,11 +835,13 @@ op_sub(struct z80_set *rec)
 void
 op_sub_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 acc;
-	Uint8 sub;
-
 	acc = regs_sets.regs[AF].UByte[A];
-	sub = *(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
+	Uint8 sub;
+	sub = mem_rd(gb_addr, host_addr);
+
 	regs_sets.regs[AF].UByte[A] -= sub;
 
 	regs_sets.regs[AF].UByte[F] = 0;
@@ -947,15 +934,18 @@ op_sbc(struct z80_set *rec)
 void
 op_sbc_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 acc;
+	acc = regs_sets.regs[AF].UByte[A];
 	Uint8 sub;
+	sub = mem_rd(gb_addr, host_addr);
+
 	Uint16 word;
-
-	acc = word = regs_sets.regs[AF].UByte[A];
-	sub = *(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
+	word = (Uint16)regs_sets.regs[AF].UByte[A];
 	word -= (sub + (regs_sets.regs[AF].UByte[F]&F_CARRY ? 1 : 0));
-	regs_sets.regs[AF].UByte[A] -= (sub + (regs_sets.regs[AF].UByte[F]&F_CARRY ? 1 : 0));
 
+	regs_sets.regs[AF].UByte[A] -= (sub + (regs_sets.regs[AF].UByte[F]&F_CARRY ? 1 : 0));
 	regs_sets.regs[AF].UByte[F] = 0;
 
 	if ((acc ^ sub ^ regs_sets.regs[AF].UByte[A])&0x10)
@@ -1039,11 +1029,16 @@ op_xor_reg_accu(struct z80_set *rec)
 void
 op_cp_mem_ind(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 acc;
-	Uint8 sub, tmp;
+	acc = regs_sets.regs[AF].UByte[A];
+	Uint8 sub;
+	sub = mem_rd(gb_addr, host_addr);
 
-	acc = tmp = regs_sets.regs[AF].UByte[A];
-	sub = *(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
+	Uint8 tmp;
+
+	tmp = regs_sets.regs[AF].UByte[A];
 	tmp -= sub;
 
 	regs_sets.regs[AF].UByte[F] = 0;
@@ -1157,13 +1152,14 @@ op_and_reg_accu(struct z80_set *rec)
 void
 op_and_mem_accu(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 acc;
-	Uint8 and;
-
 	acc = regs_sets.regs[AF].UByte[A];
-	and = *(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	regs_sets.regs[AF].UByte[A] &= and;
+	Uint8 and;
+	and = mem_rd(gb_addr, host_addr);
 
+	regs_sets.regs[AF].UByte[A] &= and;
 	regs_sets.regs[AF].UByte[F] = 0;
 
 	if (regs_sets.regs[AF].UByte[A] == 0)
@@ -1252,13 +1248,14 @@ op_xor_imm_accu(struct z80_set *rec)
 void
 op_or_mem_accu(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 acc;
-	Uint8 or;
-
 	acc = regs_sets.regs[AF].UByte[A];
-	or = *(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	regs_sets.regs[AF].UByte[A] |= or;
+	Uint8 or;
+	or = mem_rd(gb_addr, host_addr);
 
+	regs_sets.regs[AF].UByte[A] |= or;
 	regs_sets.regs[AF].UByte[F] = 0;
 
 	if (regs_sets.regs[AF].UByte[A] == 0)
@@ -1276,13 +1273,14 @@ op_or_mem_accu(struct z80_set *rec)
 void
 op_xor_mem_accu(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 acc;
-	Uint8 xor;
-
 	acc = regs_sets.regs[AF].UByte[A];
-	xor = *(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	regs_sets.regs[AF].UByte[A] ^= xor;
+	Uint8 xor;
+	xor = mem_rd(gb_addr, host_addr);
 
+	regs_sets.regs[AF].UByte[A] ^= xor;
 	regs_sets.regs[AF].UByte[F] = 0;
 
 	if (regs_sets.regs[AF].UByte[A] == 0)
@@ -1322,13 +1320,16 @@ op_or_reg_accu(struct z80_set *rec)
 void
 op_dec_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 acc;
-	Uint8 dec;
-
 	acc = regs_sets.regs[AF].UByte[A];
-	del_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	del_io = regs_sets.regs[HL].UWord;
-	dec = del_wr = (*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord));
+	Uint8 dec;
+	dec = mem_rd(gb_addr, host_addr);
+
+	del_addr = host_addr;
+	del_io = gb_addr;
+	del_wr = dec;
 
 	regs_sets.regs[AF].UByte[F] &= ~(F_ZERO|F_HCARRY);
 
@@ -1353,13 +1354,16 @@ op_dec_mem(struct z80_set *rec)
 void
 op_inc_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 acc;
-	Uint8 inc, tmp;
-
 	acc = regs_sets.regs[AF].UByte[A];
-	del_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	del_io = regs_sets.regs[HL].UWord;
-	inc = del_wr = (*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord));
+	Uint8 inc;
+	inc = mem_rd(gb_addr, host_addr);
+
+	del_addr = host_addr;
+	del_io = gb_addr;
+	del_wr = inc;
 
 	regs_sets.regs[AF].UByte[F] &= ~(F_SUBTRACT|F_ZERO|F_HCARRY);
 
@@ -1485,11 +1489,14 @@ op_inc_reg_wr(struct z80_set *rec)
 void
 op_shf_lf_arth_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 shf;
-	del_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	del_io = regs_sets.regs[HL].UWord;
+	shf = mem_rd(gb_addr, host_addr);
 
-	del_wr = shf = (*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord));
+	del_addr = host_addr;
+	del_io = gb_addr;
+	del_wr = shf;
 	del_wr <<= 1;
 
 	regs_sets.regs[AF].UByte[F] = 0;
@@ -1511,12 +1518,14 @@ op_shf_lf_arth_mem(struct z80_set *rec)
 void
 op_shf_rgh_lg_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 shf;
+	shf = mem_rd(gb_addr, host_addr);
 
-	del_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	del_io = regs_sets.regs[HL].UWord;
-
-	del_wr = shf = (*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord));
+	del_addr = host_addr;
+	del_io = gb_addr;
+	del_wr = shf;
 	del_wr >>= 1;
 
 	regs_sets.regs[AF].UByte[F] = 0;
@@ -1538,13 +1547,14 @@ op_shf_rgh_lg_mem(struct z80_set *rec)
 void
 op_shf_rgh_arth_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Sint8 shf;
+	shf = (Sint8)mem_rd(gb_addr, host_addr);
 
-	del_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	del_io = regs_sets.regs[HL].UWord;
-
-	shf = (*(Sint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord));
-	del_wr = (*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord));
+	del_addr = host_addr;
+	del_io = gb_addr;
+	del_wr = shf;
 
 	regs_sets.regs[AF].UByte[F] = 0;
 
@@ -1811,12 +1821,14 @@ op_rot_lf_acc(struct z80_set *rec)
 void
 op_rot_lf_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 rot;
+	rot = mem_rd(gb_addr, host_addr);
 
-	del_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	del_io = regs_sets.regs[HL].UWord;
-
-	del_wr = rot = (*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord));
+	del_addr = host_addr;
+	del_io = gb_addr;
+	del_wr = rot;
 	del_wr <<= 1;
 
 	if (regs_sets.regs[AF].UByte[F]&F_CARRY)
@@ -1847,12 +1859,14 @@ op_rot_lf_mem(struct z80_set *rec)
 void
 op_rot_lf_c_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 rot;
+	rot = mem_rd(gb_addr, host_addr);
 
-	del_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	del_io = regs_sets.regs[HL].UWord;
-
-	del_wr = rot = (*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord));
+	del_addr = host_addr;
+	del_io = gb_addr;
+	del_wr = rot;
 	del_wr <<= 1;
 
 	if (rot&0x80)
@@ -1877,12 +1891,14 @@ op_rot_lf_c_mem(struct z80_set *rec)
 void
 op_rot_rgh_c_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 rot;
+	rot = mem_rd(gb_addr, host_addr);
 
-	del_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	del_io = regs_sets.regs[HL].UWord;
-
-	del_wr = rot = (*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord));
+	del_addr = host_addr;
+	del_io = gb_addr;
+	del_wr = rot;
 	del_wr >>= 1;
 
 	if (rot&0x01)
@@ -1908,12 +1924,14 @@ op_rot_rgh_c_mem(struct z80_set *rec)
 void
 op_rot_rgh_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint8 rot;
+	rot = mem_rd(gb_addr, host_addr);
 
-	del_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	del_io = regs_sets.regs[HL].UWord;
-
-	del_wr = rot = (*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord));
+	del_addr = host_addr;
+	del_io = gb_addr;
+	del_wr = rot;
 	del_wr >>= 1;
 
 	if (regs_sets.regs[AF].UByte[F]&F_CARRY)
@@ -2018,13 +2036,13 @@ op_swp(struct z80_set *rec)
 void
 op_swp_mem(struct z80_set *rec)
 {
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 	Uint16 swp;
+	swp = (Uint16)mem_rd(gb_addr, host_addr);
 
-	del_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	del_io = regs_sets.regs[HL].UWord;
-
-	del_wr = swp = (*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord));
-	swp = (*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord));
+	del_addr = host_addr;
+	del_io = gb_addr;
 	swp = ((swp<<4)|(swp>>4))&0xff;
 	del_wr = swp;
 
@@ -2047,9 +2065,15 @@ op_swp_mem(struct z80_set *rec)
 void
 op_set_mem(struct z80_set *rec)
 {
-	del_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	del_io = regs_sets.regs[HL].UWord;
-	del_wr = (*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord)) | rec->format[3];
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+	Uint8 val;
+	val = mem_rd(gb_addr, host_addr);
+
+	del_addr = host_addr;
+	del_io = gb_addr;
+	del_wr = val;
+	del_wr |= rec->format[3];
 	pc++;
 	regs_sets.regs[PC].UWord++;
 }
@@ -2085,14 +2109,16 @@ op_rst(struct z80_set *rec)
 void
 op_rst_mem(struct z80_set *rec)
 {
-	/* XXX Ugly hack */
-	if (regs_sets.regs[HL].UWord >= 0x8000) {
-		del_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-		del_io = regs_sets.regs[HL].UWord;
-		del_wr = (*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord)) & ~rec->format[3];
-	}
-	else
-		del_addr = NULLZ;
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+	Uint8 val;
+	val = mem_rd(gb_addr, host_addr);
+
+	del_addr = host_addr;
+	del_io = gb_addr;
+	del_wr = val;
+	del_wr &= ~rec->format[3];
+
 	pc++;
 	regs_sets.regs[PC].UWord++;
 }
@@ -2104,7 +2130,12 @@ op_rst_mem(struct z80_set *rec)
 void
 op_bit_mem(struct z80_set *rec)
 {
-	if ((*(Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord))&rec->format[3])
+	Uint16 gb_addr = regs_sets.regs[HL].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+	Uint8 val;
+	val = mem_rd(gb_addr, host_addr);
+
+	if (val&rec->format[3])
 		regs_sets.regs[AF].UByte[F] &= ~F_ZERO;
 	else
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
@@ -2229,9 +2260,13 @@ op_call_z(struct z80_set *rec)
 	if (regs_sets.regs[AF].UByte[F]&F_ZERO) {
 		cur_tcks += 12;
 		regs_sets.regs[SP].UWord -= 2;
+		Uint16 val = regs_sets.regs[PC].UWord;
+		Uint16 gb_addr = regs_sets.regs[SP].UWord;
+		Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+		mem_wr(gb_addr, (Uint8)val, host_addr);
+		mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
+
 		Uint16 *dest;
-		dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-		*dest = regs_sets.regs[PC].UWord;
 		dest = (Uint16 *)pc;
 		pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
 		regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)-2);
@@ -2251,9 +2286,13 @@ op_call_nz(struct z80_set *rec)
 	if (!(regs_sets.regs[AF].UByte[F]&F_ZERO)) {
 		cur_tcks += 12;
 		regs_sets.regs[SP].UWord -= 2;
+		Uint16 val = regs_sets.regs[PC].UWord;
+		Uint16 gb_addr = regs_sets.regs[SP].UWord;
+		Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+		mem_wr(gb_addr, (Uint8)val, host_addr);
+		mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
+
 		Uint16 *dest;
-		dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-		*dest = regs_sets.regs[PC].UWord;
 		dest = (Uint16 *)pc;
 		pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
 		regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)-2);
@@ -2273,9 +2312,13 @@ op_call_nc(struct z80_set *rec)
 	if (!(regs_sets.regs[AF].UByte[F]&F_CARRY)) {
 		cur_tcks += 12;
 		regs_sets.regs[SP].UWord -= 2;
+		Uint16 val = regs_sets.regs[PC].UWord;
+		Uint16 gb_addr = regs_sets.regs[SP].UWord;
+		Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+		mem_wr(gb_addr, (Uint8)val, host_addr);
+		mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
+
 		Uint16 *dest;
-		dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-		*dest = regs_sets.regs[PC].UWord;
 		dest = (Uint16 *)pc;
 		pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
 		regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)-2);
@@ -2295,9 +2338,13 @@ op_call_c(struct z80_set *rec)
 	if (regs_sets.regs[AF].UByte[F]&F_CARRY) {
 		cur_tcks += 12;
 		regs_sets.regs[SP].UWord -= 2;
+		Uint16 val = regs_sets.regs[PC].UWord;
+		Uint16 gb_addr = regs_sets.regs[SP].UWord;
+		Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+		mem_wr(gb_addr, (Uint8)val, host_addr);
+		mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
+
 		Uint16 *dest;
-		dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-		*dest = regs_sets.regs[PC].UWord;
 		dest = (Uint16 *)pc;
 		pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
 		regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)-2);
@@ -2312,11 +2359,15 @@ void
 op_call(struct z80_set *rec)
 {
 	regs_sets.regs[SP].UWord -= 2;
-	
-	Uint16 *dest;
 
-	dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-	*dest = regs_sets.regs[PC].UWord+3;
+	Uint16 val = regs_sets.regs[PC].UWord+3;
+	Uint16 gb_addr = regs_sets.regs[SP].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+
+	mem_wr(gb_addr, (Uint8)val, host_addr);
+	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
+
+	Uint16 *dest;
 	dest = (Uint16 *)pc;
 	pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)+1))>>12]+(*(((Uint8 *)dest)+1)));
 	regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)+1);
@@ -2332,12 +2383,14 @@ void
 op_reset_0(struct z80_set *rec)
 {
 	regs_sets.regs[SP].UWord -= 2;
-	
-	Uint16 *dest;
 
-	dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-	*dest = (regs_sets.regs[PC].UWord+1);
-	dest = (Uint16 *)pc;
+	Uint16 val = regs_sets.regs[PC].UWord+1;
+	Uint16 gb_addr = regs_sets.regs[SP].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+
+	mem_wr(gb_addr, (Uint8)val, host_addr);
+	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
+
 	pc = addr_sp;
 	regs_sets.regs[PC].UWord = 0;
 }
@@ -2352,12 +2405,14 @@ void
 op_reset_8h(struct z80_set *rec)
 {
 	regs_sets.regs[SP].UWord -= 2;
-	
-	Uint16 *dest;
 
-	dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-	*dest = (regs_sets.regs[PC].UWord+1);
-	dest = (Uint16 *)pc;
+	Uint16 val = regs_sets.regs[PC].UWord+1;
+	Uint16 gb_addr = regs_sets.regs[SP].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+
+	mem_wr(gb_addr, (Uint8)val, host_addr);
+	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
+
 	pc = addr_sp+8;
 	regs_sets.regs[PC].UWord = 8;
 }
@@ -2372,12 +2427,14 @@ void
 op_reset_10h(struct z80_set *rec)
 {
 	regs_sets.regs[SP].UWord -= 2;
-	
-	Uint16 *dest;
 
-	dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-	*dest = (regs_sets.regs[PC].UWord+1);
-	dest = (Uint16 *)pc;
+	Uint16 val = regs_sets.regs[PC].UWord+1;
+	Uint16 gb_addr = regs_sets.regs[SP].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+
+	mem_wr(gb_addr, (Uint8)val, host_addr);
+	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
+
 	pc = addr_sp+16;
 	regs_sets.regs[PC].UWord = 16;
 }
@@ -2389,13 +2446,16 @@ op_reset_10h(struct z80_set *rec)
 void
 op_ret(struct z80_set *rec)
 {
-	
-	Uint16 *dest;
+	Uint16 gb_addr = regs_sets.regs[SP].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 
-	dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
+	Uint16 val; 
+	val = ((Uint16)mem_rd(gb_addr+1, host_addr+1))<<8;
+	val = ((Uint16)mem_rd(gb_addr, host_addr)) | val;
+
 	regs_sets.regs[SP].UWord += 2;
-	regs_sets.regs[PC].UWord = *dest;
-	pc = (Uint8 *)addr_sp_ptrs[regs_sets.regs[PC].UWord>>12]+regs_sets.regs[PC].UWord;
+	regs_sets.regs[PC].UWord = val;
+	pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
 }
 
 void
@@ -2415,12 +2475,14 @@ void
 op_reset_18h(struct z80_set *rec)
 {
 	regs_sets.regs[SP].UWord -= 2;
-	
-	Uint16 *dest;
 
-	dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-	*dest = (regs_sets.regs[PC].UWord+1);
-	dest = (Uint16 *)pc;
+	Uint16 val = regs_sets.regs[PC].UWord+1;
+	Uint16 gb_addr = regs_sets.regs[SP].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+
+	mem_wr(gb_addr, (Uint8)val, host_addr);
+	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
+
 	pc = addr_sp+24;
 	regs_sets.regs[PC].UWord = 24;
 }
@@ -2435,12 +2497,14 @@ void
 op_reset_20h(struct z80_set *rec)
 {
 	regs_sets.regs[SP].UWord -= 2;
-	
-	Uint16 *dest;
 
-	dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-	*dest = (regs_sets.regs[PC].UWord+1);
-	dest = (Uint16 *)pc;
+	Uint16 val = regs_sets.regs[PC].UWord+1;
+	Uint16 gb_addr = regs_sets.regs[SP].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+
+	mem_wr(gb_addr, (Uint8)val, host_addr);
+	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
+
 	pc = addr_sp+32;
 	regs_sets.regs[PC].UWord = 32;
 }
@@ -2455,12 +2519,14 @@ void
 op_reset_28h(struct z80_set *rec)
 {
 	regs_sets.regs[SP].UWord -= 2;
-	
-	Uint16 *dest;
 
-	dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-	*dest = (regs_sets.regs[PC].UWord+1);
-	dest = (Uint16 *)pc;
+	Uint16 val = regs_sets.regs[PC].UWord+1;
+	Uint16 gb_addr = regs_sets.regs[SP].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+
+	mem_wr(gb_addr, (Uint8)val, host_addr);
+	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
+
 	pc = addr_sp+40;
 	regs_sets.regs[PC].UWord = 40;
 }
@@ -2475,12 +2541,14 @@ void
 op_reset_30h(struct z80_set *rec)
 {
 	regs_sets.regs[SP].UWord -= 2;
-	
-	Uint16 *dest;
 
-	dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-	*dest = (regs_sets.regs[PC].UWord+1);
-	dest = (Uint16 *)pc;
+	Uint16 val = regs_sets.regs[PC].UWord+1;
+	Uint16 gb_addr = regs_sets.regs[SP].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+
+	mem_wr(gb_addr, (Uint8)val, host_addr);
+	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
+
 	pc = addr_sp+48;
 	regs_sets.regs[PC].UWord = 48;
 }
@@ -2495,12 +2563,14 @@ void
 op_reset_38h(struct z80_set *rec)
 {
 	regs_sets.regs[SP].UWord -= 2;
-	
-	Uint16 *dest;
 
-	dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
-	*dest = (regs_sets.regs[PC].UWord+1);
-	dest = (Uint16 *)pc;
+	Uint16 val = regs_sets.regs[PC].UWord+1;
+	Uint16 gb_addr = regs_sets.regs[SP].UWord;
+	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+
+	mem_wr(gb_addr, (Uint8)val, host_addr);
+	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
+
 	pc = addr_sp+56;
 	regs_sets.regs[PC].UWord = 56;
 }
@@ -2516,13 +2586,17 @@ op_ret_z(struct z80_set *rec)
 	regs_sets.regs[PC].UWord++;
 
 	if (regs_sets.regs[AF].UByte[F]&F_ZERO) {
-
-		Uint16 *dest;
-		cur_tcks += 12;
-		dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
+		Uint16 gb_addr = regs_sets.regs[SP].UWord;
+		Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
+		
+		Uint16 val; 
+		val = ((Uint16)mem_rd(gb_addr+1, host_addr+1))<<8;
+		val = ((Uint16)mem_rd(gb_addr, host_addr)) | val;
+		
 		regs_sets.regs[SP].UWord += 2;
-		regs_sets.regs[PC].UWord = *dest;
-		pc = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[PC].UWord>>12]+regs_sets.regs[PC].UWord);
+		regs_sets.regs[PC].UWord = val;
+		pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
+		cur_tcks += 12;
 	}
 }
 
@@ -2537,14 +2611,17 @@ op_ret_nz(struct z80_set *rec)
 	regs_sets.regs[PC].UWord++;
 
 	if (!(regs_sets.regs[AF].UByte[F]&F_ZERO)) {
-
-		Uint16 *dest;
-		cur_tcks += 12;
+		Uint16 gb_addr = regs_sets.regs[SP].UWord;
+		Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 		
-		dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
+		Uint16 val; 
+		val = ((Uint16)mem_rd(gb_addr+1, host_addr+1))<<8;
+		val = ((Uint16)mem_rd(gb_addr, host_addr)) | val;
+		
 		regs_sets.regs[SP].UWord += 2;
-		regs_sets.regs[PC].UWord = *dest;
-		pc = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[PC].UWord>>12]+regs_sets.regs[PC].UWord);
+		regs_sets.regs[PC].UWord = val;
+		pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
+		cur_tcks += 12;
 	}
 }
 
@@ -2559,14 +2636,17 @@ op_ret_nc(struct z80_set *rec)
 	regs_sets.regs[PC].UWord++;
 
 	if (!(regs_sets.regs[AF].UByte[F]&F_CARRY)) {
-
-		Uint16 *dest;
-		cur_tcks += 12;
+		Uint16 gb_addr = regs_sets.regs[SP].UWord;
+		Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 		
-		dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
+		Uint16 val; 
+		val = ((Uint16)mem_rd(gb_addr+1, host_addr+1))<<8;
+		val = ((Uint16)mem_rd(gb_addr, host_addr)) | val;
+		
 		regs_sets.regs[SP].UWord += 2;
-		regs_sets.regs[PC].UWord = *dest;
-		pc = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[PC].UWord>>12]+regs_sets.regs[PC].UWord);
+		regs_sets.regs[PC].UWord = val;
+		pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
+		cur_tcks += 12;
 	}
 }
 
@@ -2581,14 +2661,17 @@ op_ret_c(struct z80_set *rec)
 	regs_sets.regs[PC].UWord++;
 
 	if (regs_sets.regs[AF].UByte[F]&F_CARRY) {
-
-		Uint16 *dest;
-		cur_tcks += 12;
+		Uint16 gb_addr = regs_sets.regs[SP].UWord;
+		Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 		
-		dest = (Uint16 *)(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]+regs_sets.regs[SP].UWord);
+		Uint16 val; 
+		val = ((Uint16)mem_rd(gb_addr+1, host_addr+1))<<8;
+		val = ((Uint16)mem_rd(gb_addr, host_addr)) | val;
+		
 		regs_sets.regs[SP].UWord += 2;
-		regs_sets.regs[PC].UWord = *dest;
-		pc = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[PC].UWord>>12]+regs_sets.regs[PC].UWord);
+		regs_sets.regs[PC].UWord = val;
+		pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
+		cur_tcks += 12;
 	}
 }
 
@@ -5474,9 +5557,7 @@ execute_precise(struct z80_set *rec)
 			if (write_is_delayed&0x1)
 			{
 				if (del_addr != NULLZ) {
-					*del_addr = del_wr;
-					if (del_io >= 0xff00 && del_io < 0xff80)
-						io_ctrl(del_io&0xff, del_wr);
+					mem_wr(del_io, del_wr, del_addr);
 				}
 				write_is_delayed = 2;
 				goto last_run;

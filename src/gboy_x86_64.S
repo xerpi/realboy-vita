@@ -537,16 +537,21 @@ last_run:
 3:
 	jmp beg_exe
 mem_delayed:
-	movb %dl, (%rsi) # do memory write
-	cmpq $0xff00, %r11
-	jb 1f
-	cmpq $0xff80, %r11
-	jae 1f
+	movb %dl, (%rsi) # XXX do memory write
+#cmpq $0xff00, %r11
+#jb 1f
+#cmpq $0xff80, %r11
+#jae 1f
+#movq %r11, %rdi
+#movq %rdx, %rsi
+#andq $0xff, %rdi
+#andq $0xff, %rsi
+#call io_ctrl_wr
 	movq %r11, %rdi
+	movq %rsi, %r11
 	movq %rdx, %rsi
-	andq $0xff, %rdi
-	andq $0xff, %rsi
-	call io_ctrl
+	movq %r11, %rdx
+	call mem_wr
 1:
 	movq $2, write_is_delayed
 	jmp last_run
@@ -873,17 +878,7 @@ op_ld_imm_mem:
 	movq 1(%r13), %rdx # get immediate value
 	addq $2, %r13 # advance PC
 	andq $0xff, %rdx # mask in byte
-	cmpq $0xff00, %rdi # writing to IO?
-	jb 1f # no
-	cmpq $0xff80, %rdi # writing to IO?
-	jae 1f # no
-	andq $0xff, %rdi # argument: IO address
-	movq %rdx, %rsi # argument: new value
-	call io_ctrl # handle IO
-	ret
-1:
-	cmpq $0x7fff, %rdi # if memory write to 0-0x7fff, mbc functions
-	jbe 2f # jump to mbc functions
+	movq %rdx, %rsi
 	movq %rdi, %r11 # save address
 	shrq $9, %rdi # get offset to pointer and base
 	andq $0x78, %rdi # mask bits
@@ -891,18 +886,9 @@ op_ld_imm_mem:
 	addq %rdi, %r10 # get address
 	movq %r11, %rdi # restore address
 	addq (%r10), %rdi # get real address
-	andq $~0xff, (%rdi) # zero byte
-	orq %rdx, (%rdi) # copy byte
+	movq %rdi, %rdx
 	movq %r11, %rdi # restore address
-	ret
-2:
-	shrq $9, %rdi # get offset to mbc function
-	andq $0x78, %rdi # mask bits
-	movq $gb_mbc, %r10 # array of mbc functions
-	addq %rdi, %r10 # point to mbc function
-	movq (%r10), %rbx # copy function
-	movq %rdx, %rdi # value as argument
-	call *%rbx # handle mbc stuff
+	call mem_wr
 	ret
 
 /* 
@@ -959,24 +945,12 @@ op_ld_reg_imm:
 	movq $regs_sets, %rdi # register set
 	addq $3, PC(%rdi) # advance PC register
 	addq %rcx, %rdi # point to register
-	movq (%rdi), %r12 # copy register
+	movq (%rdi), %rsi # copy register
 	movq 24(%rdx), %rcx # BYTE or WORD
 	movsx %ecx, %rcx # extend sign
 	movq 1(%r13), %rdi # get immediate value
 	addq $3, %r13 # advance PC
 	andq $0xffff, %rdi # mask in word
-	cmpq $0xff00, %rdi # writing to IO?
-	jb 1f # no
-	cmpq $0xff80, %rdi
-	jae 1f
-	andq $0xff, %rdi # argument
-	andq $0xff, %r12
-	movq %r12, %rsi # argument
-	call io_ctrl
-	ret
-1:
-	cmpq $0x7fff, %rdi # if memory write to 0-0x7fff, remap MBC
-	jbe 2f # remap MBC
 	movq %rdi, %r10 # save address
 	shrq $9, %rdi # scale for address pointers
 	andq $0x78, %rdi # mask bits
@@ -984,19 +958,24 @@ op_ld_reg_imm:
 	addq %rdi, %r11 # pointer to address
 	movq %r10, %rdi # restore address
 	addq (%r11), %rdi # get address
-	andq %rcx, (%rdi) # mask word/byte
-	notq %rcx # invert
-	andq %rcx, %r12 # mask in byte/word
-	orq %r12, (%rdi) # copy new register
-	ret
-2:
-	shrq $9, %rdi # get offset to pointer and base
-	andq $0x78, %rdi # mask bits
-	movq $gb_mbc, %r10 # pointer to address
-	addq %rdi, %r10
-	movq (%r10), %rbx
-	movq %r12, %rdi # value as argument
-	call *%rbx # handle mbc stuff
+	movq %rdi, %rdx
+	movq %r10, %rdi # restore address
+	cmpq $BYTE, %rcx
+	je 1f
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	andq $0xff, %rsi
+	call mem_wr
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	andq $0xff, %rsi
+1:
+	call mem_wr
 	ret
 
 /* 
@@ -1014,18 +993,7 @@ op_ld_reg_mem:
 	andq $0xff, %rdx # mask in byte
 	movq $regs_sets, %r10 # register set
 	addq %rdx, %r10 # point to register
-	movb (%r10), %cl # register to copy
-	cmpq $0xff00, %rdi # writing IO?
-	jb 1f
-	cmpq $0xff80, %rdi
-	jae 1f
-	andq $0xff, %rdi # argument
-	movq %rcx, %rsi # argument
-	call io_ctrl
-	ret
-1:
-	cmpq $0x7fff, %rdi # if memory write to 0-0x7fff, handle mbc
-	jbe 2f # it is a normal write
+	movq (%r10), %rsi # register to copy
 	movq %rdi, %r11 # save address
 	shrq $9, %rdi # get offset to pointer and base
 	andq $0x78, %rdi # mask bits
@@ -1033,30 +1001,21 @@ op_ld_reg_mem:
 	addq %rdi, %r10
 	movq %r11, %rdi # restore address
 	addq (%r10), %rdi
-	andq $~0xff, (%rdi) # zero byte
-	orq %rcx, (%rdi) # copy byte
+	movq %rdi, %rdx
 	movq %r11, %rdi # restore address
-	ret
-2:
-	shrq $9, %rdi # get offset to pointer and base
-	andq $0x78, %rdi # mask bits
-	movq $gb_mbc, %r10 # pointer to address
-	addq %rdi, %r10
-	movq (%r10), %rbx
-	movq %rcx, %rdi # value as argument
-	call *%rbx # handle mbc stuff
+	call mem_wr
 	ret
 
 /* 
  * ld reg, mem
  */
 op_ld_mem_reg:
-	movq $regs_sets, %rdi # pointer to register set
-	incq PC(%rdi) # advance PC register
+	movq $regs_sets, %r12 # pointer to register set
+	incq PC(%r12) # advance PC register
 	incq %r13 # advance PC
 	movq 2(%rdx), %rcx # offset to destination register
 	andq $0xff, %rcx # mask in byte
-	addq %rcx, %rdi # point to destination register
+	addq %rcx, %r12 # point to destination register
 	movq 4(%rdx), %rcx # offset to source register
 	andq $0xff, %rcx # mask in byte
 	movq $regs_sets, %r10 # register set
@@ -1069,9 +1028,11 @@ op_ld_mem_reg:
 	addq %rax, %r10
 	movq %r11, %rax
 	addq (%r10), %rax
-	movq (%rax), %rax # copy
-	andq $~0xff, (%rdi) # zero byte in register
-	orb %al, (%rdi) # OPERATION: copy byte
+	movq %rax, %rsi
+	movq %r11, %rdi
+	call mem_rd
+	andq $~0xff, (%r12) # zero byte in register
+	orb %al, (%r12) # OPERATION: copy byte
 	ret
 
 /* 
@@ -1083,20 +1044,9 @@ op_ldd_reg_mem:
 	incq %r13 # advance PC
 	pushq HL(%rdi) # push old HL
 	decw HL(%rdi) # decrement new HL
-	movq A(%rdi), %rcx # copy A register
-	andq $0xff, %rcx
+	movq A(%rdi), %rsi # copy A register
+	andq $0xff, %rsi
 	popq %rdi # pop old HL
-	cmpq $0xff00, %rdi # writing to IO?
-	jb 1f
-	cmpq $0xff80, %rdi
-	jae 1f
-	andq $0xff, %rdi # argument
-	movq %rcx, %rsi # argument
-	call io_ctrl
-	ret
-1:
-	cmpq $0x7fff, %rdi # if memory write to 0-0x7fff, handle mbc
-	jbe 2f # it is a normal write
 	movq %rdi, %r11 # save address
 	shrq $9, %rdi # get offset to pointer and base
 	andq $0x78, %rdi # mask bits
@@ -1104,29 +1054,21 @@ op_ldd_reg_mem:
 	addq %rdi, %r10
 	movq %r11, %rdi
 	addq (%r10), %rdi
-	andq $~0xff, (%rdi) # zero byte
-	orq %rcx, (%rdi) # copy byte
-	ret
-2:
-	shrq $9, %rdi # get offset to pointer and base
-	andq $0x78, %rdi # mask bits
-	movq $gb_mbc, %r10 # pointer to address
-	addq %rdi, %r10
-	movq (%r10), %rbx
-	movq %rcx, %rdi # push value as argument
-	call *%rbx # handle mbc stuff
+	movq %rdi, %rdx
+	movq %r11, %rdi
+	call mem_wr
 	ret
 
 /* 
  * ldd A, (HL)
  */
 op_ldd_mem_reg:
-	movq $regs_sets, %rdi # register set
-	incq PC(%rdi) # advance PC register
+	movq $regs_sets, %r12 # register set
+	incq PC(%r12) # advance PC register
 	incq %r13 # advance PC
-	pushq HL(%rdi) # push old HL
-	decw HL(%rdi) # decrement new HL
-	incq %rdi # point to A
+	pushq HL(%r12) # push old HL
+	decw HL(%r12) # decrement new HL
+	incq %r12 # point to A
 	popq %rax # pop old HL
 	andq $0xffff, %rax # mask in register pair
 	movq %rax, %r11 # save address
@@ -1136,9 +1078,11 @@ op_ldd_mem_reg:
 	addq %rax, %r10
 	movq %r11, %rax
 	addq (%r10), %rax
-	movq (%rax), %rdx # copy
-	andq $~0xff, (%rdi) # zero byte in register
-	orb %dl, (%rdi) # copy byte
+	movq %rax, %rsi
+	movq %r11, %rdi
+	call mem_rd
+	andq $~0xff, (%r12) # zero byte in register
+	orb %al, (%r12) # copy byte
 	ret
 
 /* 
@@ -1150,20 +1094,9 @@ op_ldi_reg_mem:
 	incq %r13 # advance PC
 	movq HL(%rdi), %rax # save old HL
 	incq HL(%rdi) # increment new HL
-	movq A(%rdi), %rcx # copy A
+	movq A(%rdi), %rsi # copy A
 	movq %rax, %rdi # copy old HL
-	andq $0xff, %rcx
-	cmpq $0xff00, %rdi # writing to IO?
-	jb 1f
-	cmpq $0xff80, %rdi
-	jae 1f
-	andq $0xff, %rdi # argument
-	movq %rcx, %rsi # argument
-	call io_ctrl
-	ret
-1:
-	cmpq $0x7fff, %rdi # if memory write to 0-0x7fff, handle mbc
-	jbe 2f # it is a normal write
+	andq $0xff, %rsi
 	movq %rdi, %r11 # save address
 	shrq $9, %rdi # get offset to pointer and base
 	andq $0x78, %rdi # mask bits
@@ -1171,29 +1104,21 @@ op_ldi_reg_mem:
 	addq %rdi, %r10
 	movq %r11, %rdi
 	addq (%r10), %rdi
-	andq $~0xff, (%rdi) # zero byte
-	orq %rcx, (%rdi) # copy byte
-	ret
-2:
-	shrq $9, %rdi # get offset to pointer and base
-	andq $0x78, %rdi # mask bits
-	movq $gb_mbc, %r10 # pointer to address
-	addq %rdi, %r10
-	movq (%r10), %rbx
-	movq %rcx, %rdi # push value as argument
-	call *%rbx # handle mbc stuff
+	movq %rdi, %rdx
+	movq %r11, %rdi
+	call mem_wr
 	ret
 
 /* 
  * ldi A, (HL)
  */
 op_ldi_mem_reg:
-	movq $regs_sets, %rdi # register set
-	incq PC(%rdi) # advance PC register
+	movq $regs_sets, %r12 # register set
+	incq PC(%r12) # advance PC register
 	incq %r13 # advance PC
-	movq HL(%rdi), %rax # push old HL
-	incq HL(%rdi) # decrement new HL
-	incq %rdi # point to A
+	movq HL(%r12), %rax # push old HL
+	incq HL(%r12) # decrement new HL
+	incq %r12 # point to A
 	andq $0xffff, %rax # mask in register pair
 	movq %rax, %r11 # save address
 	shrq $9, %rax # get offset to pointer and base
@@ -1202,16 +1127,18 @@ op_ldi_mem_reg:
 	addq %rax, %r10
 	movq %r11, %rax
 	addq (%r10), %rax
-	movq (%rax), %rdx # copy
-	andq $~0xff, (%rdi) # zero byte in register
-	orb %dl, (%rdi) # copy byte
+	movq %rax, %rsi
+	movq %r11, %rdi
+	call mem_rd
+	andq $~0xff, (%r12) # zero byte in register
+	orb %al, (%r12) # copy byte
 	ret
 
 /*
  * ld A, (nn)
  */
 op_ld_imm_acc:
-	leaq regs_sets+A, %rdi # pointer to A
+	leaq regs_sets+A, %r12 # pointer to A
 	addq $3, regs_sets+PC # advance PC register
 	movq 1(%r13), %rax # pointer to immediate
 	addq $3, %r13 # advance PC
@@ -1223,9 +1150,11 @@ op_ld_imm_acc:
 	addq %rax, %r10
 	movq %r11, %rax
 	addq (%r10), %rax
-	movq (%rax), %rax # copy byte
-	andq $~0xff, (%rdi) # zero register
-	orb %al, (%rdi) # OPERATION
+	movq %rax, %rsi
+	movq %r11, %rdi
+	call mem_rd
+	andq $~0xff, (%r12) # zero register
+	orb %al, (%r12) # OPERATION
 	ret
 
 /* 
@@ -1238,11 +1167,16 @@ op_ld_io_reg_reg:
 	movq C(%r10), %rcx # copy C
 	andq $~0xff, A(%r10) # zero A register
 	andq $0xff, %rcx # mask in C
-	movq $addr_sp, %rdi # pointer to address space
-	addq %rcx, %rdi # pointer to byte
+	movq %rcx, %rdi
+	movq $addr_sp, %rsi # pointer to address space
+	addq %rcx, %rsi # pointer to byte
+	addq $0xff00, %rsi # add
 	addq $0xff00, %rdi # add
-	movb (%rdi), %cl # copy byte
-	orq %rcx, A(%r10) # copy register
+	pushq %r10
+	call mem_rd
+	popq %r10
+	andq $0xff, %rax
+	orq %rax, A(%r10) # copy register
 	ret
 
 /* 
@@ -1251,15 +1185,20 @@ op_ld_io_reg_reg:
 op_ld_io_reg_imm:
 	movq $regs_sets, %r10 # pointer to registers
 	addq $2, PC(%r10) # advance PC register
-	movq 1(%r13), %rcx # copy C
+	movq 1(%r13), %rcx # copy immediate
 	addq $2, %r13 # advance PC
 	andq $~0xff, A(%r10) # zero register
 	andq $0xff, %rcx # mask in byte
-	movq $addr_sp, %rdi # pointer to address space
-	addq %rcx, %rdi # pointer to byte
+	movq %rcx, %rdi
+	movq $addr_sp, %rsi # pointer to address space
+	addq %rcx, %rsi # pointer to byte
+	addq $0xff00, %rsi # add
 	addq $0xff00, %rdi # add
-	movb (%rdi), %cl # copy byte
-	orq %rcx, A(%r10) # copy register
+	pushq %r10
+	call mem_rd
+	popq %r10
+	andq $0xff, %rax
+	orq %rax, A(%r10) # copy register
 	ret
 
 /* 
@@ -1274,7 +1213,7 @@ op_ld_reg_io_reg:
 	movq %rcx, %rsi # argument: new value to io port
 	movq C(%r10), %rdi # copy register
 	andq $0xff, %rdi # mask in C; argument
-	call io_ctrl # call C function
+	call io_ctrl_wr # call C function
 	ret
 
 /* 
@@ -1288,7 +1227,7 @@ op_ld_reg_io_imm:
 	movq A(%r10), %rsi # copy A
 	andq $0xff, %rsi # mask in A; argument
 	andq $0xff, %rdi # mask in byte
-	call io_ctrl # call C function
+	call io_ctrl_wr # call C function
 	ret
 
 /*
@@ -1311,7 +1250,21 @@ op_pop_af:
 	addq %rax, %rdx # point to address space
 	movq %r11, %rax
 	addq (%rdx), %rax # get offset
-	movq (%rax), %rax # get byte
+	movq %rax, %rsi
+	movq %r11, %rdi
+	pushq %r10
+	pushq %rsi
+	pushq %rdi
+	call mem_rd
+	movq %rax, %r12
+	pop %rdi
+	pop %rsi
+	incq %rsi
+	incq %rdi
+	call mem_rd
+	shlq $8, %rax
+	orb %r12b, %al
+	pop %r10
 	andq $0xff00|F_HCARRY|F_CARRY|F_SUBTRACT|F_ZERO, %rax # mask in word
 	movq %rax, (%r10) # copy new register pair
 	ret
@@ -1336,7 +1289,21 @@ op_pop:
 	addq %rax, %rdx # point to address space
 	movq %r11, %rax
 	addq (%rdx), %rax # get offset
-	movq (%rax), %rax # get byte
+	movq %rax, %rsi
+	movq %r11, %rdi
+	pushq %r10
+	pushq %rsi
+	pushq %rdi
+	call mem_rd
+	movq %rax, %r12
+	pop %rdi
+	pop %rsi
+	incq %rsi
+	incq %rdi
+	call mem_rd
+	shlq $8, %rax
+	orb %r12b, %al
+	pop %r10
 	andq $0xffff, %rax # mask in word
 	movq %rax, (%r10) # copy new register pair
 	ret
@@ -1353,17 +1320,29 @@ op_push:
 	xorq %rcx, %rcx # zero
 	movb 2(%rdx), %cl # register offset
 	addq %rcx, %r10 # point to register
-	movq (%r10), %rbx # copy register pair
+	movq (%r10), %rsi # copy register pair
 	subq $2, SP(%rdi) # new SP register
-	movq SP(%rdi), %r12
-	movq $addr_sp_ptrs, %rsi
-	movq %r12, %rax # save
-	shrq $9, %r12 # get
-	andq $0x78, %r12 #  offset to pointer in addr_sp_ptrs
-	addq %r12, %rsi # point to address space
-	movq %rax, %r12 # restore
-	addq (%rsi), %r12 # new PC
-	movw %bx, (%r12)
+	movq SP(%rdi), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	call mem_wr
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	call mem_wr
 	ret
 
 
@@ -1444,7 +1423,7 @@ op_add_mem:
 	incq %r13 # advance PC
 	xorq %rcx, %rcx # zero
 	xorq %rax, %rax # zero
-	movq $regs_sets+A, %rdi # pointer to A
+	movq $regs_sets+A, %r12 # pointer to A
 	movq HL(%r10), %rax # copy HL
 	movq $addr_sp_ptrs, %rdx
 	movq %rax, %r11 # save
@@ -1453,9 +1432,13 @@ op_add_mem:
 	addq %rax, %rdx # point to address space
 	movq %r11, %rax
 	addq (%rdx), %rax # get offset
-	movq (%rax), %rax # get byte
+	movq %rax, %rsi
+	movq %r11, %rdi
+	pushq %r10
+	call mem_rd
+	popq %r10
 	andq $0xff, %rax # mask byte
-	addb %al, (%rdi) # OPERATION: add byte to accumulator
+	addb %al, (%r12) # OPERATION: add byte to accumulator
 	pushf # push flags
 	popq %rax # pop flags
 	movq %rax, %rdx # copy flags
@@ -1602,7 +1585,7 @@ op_adc:
 op_adc_mem:
 	pushq %rbp
 	movq %rsp, %rbp
-	movq $regs_sets+A, %rdi # pointer to A
+	movq $regs_sets+A, %r12 # pointer to A
 	movq $regs_sets, %r10 # pointer to registers
 	incq PC(%r10)
 	movq HL(%r10), %rax # copy HL
@@ -1613,7 +1596,11 @@ op_adc_mem:
 	addq %rax, %rdx # point to address space
 	movq %r11, %rax # restore
 	addq (%rdx), %rax # get offset
-	movq (%rax), %rax # get byte
+	movq %rax, %rsi
+	movq %r11, %rdi # restore
+	pushq %r10
+	call mem_rd
+	popq %r10
 	andq $0xff, %rax # mask byte
 	movb regs_sets, %bl
 	andb $F_CARRY, %bl
@@ -1622,7 +1609,7 @@ op_adc_mem:
 	andq $~1, -8(%rbp) # zero carry flag
 	orb %bl, -8(%rbp) # copy z80 carry flag into x86 carry flag
 	popf # pop new x86 flags incquding z80 carry flag
-	adcb %al, (%rdi) # add to register
+	adcb %al, (%r12) # add to register
 	pushf # push flags
 	popq %rax # pop flags
 	movq %rax, %rdx # push flags
@@ -1728,7 +1715,7 @@ op_sub:
  */
 op_sub_mem:
 	xorq %rcx, %rcx # zero
-	movq $regs_sets+A, %rdi # pointer to A
+	movq $regs_sets+A, %r12 # pointer to A
 	movq $regs_sets, %r10 # pointer to registers
 	andq $~0xff, (%r10) # clear flags
 	incq PC(%r10)
@@ -1741,9 +1728,13 @@ op_sub_mem:
 	addq %rax, %rdx # point to address space
 	movq %r11, %rax
 	addq (%rdx), %rax # get offset
-	movq (%rax), %rax # get byte
+	movq %rax, %rsi
+	movq %r11, %rdi
+	pushq %r10
+	call mem_rd
+	popq %r10
 	andq $0xff, %rax # mask byte
-	subb %al, (%rdi) # subtract to register
+	subb %al, (%r12) # subtract to register
 	pushf # push flags
 	popq %rax # pop flags
 	movq %rax, %rdx # push flags
@@ -1841,7 +1832,7 @@ op_sbc:
 op_sbc_mem:
 	pushq %rbp
 	movq %rsp, %rbp
-	movq $regs_sets+A, %rdi # pointer to A
+	movq $regs_sets+A, %r12 # pointer to A
 	movq $regs_sets, %r10 # pointer to registers
 	incq PC(%r10)
 	movq HL(%r10), %rax # copy HL
@@ -1852,7 +1843,11 @@ op_sbc_mem:
 	addq %rax, %rdx # point to address space
 	movq %r11, %rax # restore
 	addq (%rdx), %rax # get offset
-	movq (%rax), %rax # get byte
+	movq %rax, %rsi
+	movq %r11, %rdi # restore
+	pushq %r10
+	call mem_rd
+	popq %r10
 	andq $0xff, %rax # mask byte
 	movb regs_sets, %bl
 	andb $F_CARRY, %bl
@@ -1861,7 +1856,7 @@ op_sbc_mem:
 	andq $~1, -8(%rbp) # zero carry flag
 	orb %bl, -8(%rbp) # copy z80 carry flag into x86 carry flag
 	popf # pop new x86 flags incquding z80 carry flag
-	sbbb %al, (%rdi) # subtract to register
+	sbbb %al, (%r12) # subtract to register
 	pushf # push flags
 	popq %rax # pop flags
 	movq %rax, %rdx # push flags
@@ -1971,7 +1966,12 @@ op_cp_mem_ind:
 	addq %rax, %rdi # point to address space
 	movq %r11, %rax
 	addq (%rdi), %rax # get offset
-	movq (%rax), %rcx
+	movq %rax, %rsi
+	movq %r11, %rdi
+	pushq %r10
+	call mem_rd
+	popq %r10
+	movq %rax, %rcx
 	cmpb %cl, 1(%r10) # cp A-d8
 	pushf # save flags
 	popq %rax
@@ -2097,7 +2097,10 @@ op_and_mem_accu:
 	addq %rcx, %rdi # point to address space
 	movq %r11, %rcx
 	addq (%rdi), %rcx # get offset
-	movq (%rcx), %rcx
+	movq %rcx, %rsi
+	movq %r11, %rdi
+	call mem_rd
+	movq %rax, %rcx
 	andq $0xff, %rcx # mask in byte
 	movq $regs_sets, %r10 # pointer to registers
 	andb %cl, 1(%r10) # or A
@@ -2206,7 +2209,12 @@ op_or_mem_accu:
 	addq %rcx, %rdi # point to address space
 	movq %r11, %rcx
 	addq (%rdi), %rcx # get offset
-	movq (%rcx), %rcx
+	movq %rcx, %rsi
+	movq %r11, %rdi
+	pushq %r10
+	call mem_rd
+	popq %r10
+	movq %rax, %rcx
 	orb %cl, 1(%r10) # or A
 	pushf # save flags
 	popq %rcx # restore flags
@@ -2235,7 +2243,12 @@ op_xor_mem_accu:
 	addq %rcx, %rdi # point to address space
 	movq %r11, %rcx # restore
 	addq (%rdi), %rcx # get offset
-	movq (%rcx), %rcx
+	movq %rcx, %rsi
+	movq %r11, %rdi
+	pushq %r10
+	call mem_rd
+	popq %r10
+	movq %rax, %rcx
 	xorb %cl, 1(%r10) # xor A
 	pushf # save flags
 	popq %rcx # restore flags
@@ -2283,11 +2296,11 @@ op_or_reg_accu:
  *
  */
 op_dec_mem:
-	movq $regs_sets, %rdi # pointer to registers
-	incq PC(%rdi)
-	movq HL(%rdi), %rcx # copy HL
-	andq $~F_HCARRY, (%rdi) # clear HCARRY
-	orq $F_SUBTRACT, (%rdi) # set SUBTRACT
+	movq $regs_sets, %r12 # pointer to registers
+	incq PC(%r12)
+	movq HL(%r12), %rcx # copy HL
+	andq $~F_HCARRY, (%r12) # clear HCARRY
+	orq $F_SUBTRACT, (%r12) # set SUBTRACT
 	movq $addr_sp_ptrs, %r10
 	movq %rcx, %r11 # save
 	shrq $9, %rcx # get
@@ -2295,20 +2308,23 @@ op_dec_mem:
 	addq %rcx, %r10 # point to address space
 	movq %r11, %rcx # restore
 	addq (%r10), %rcx # get offset
-	movq (%rcx), %rdx # get word
+	movq %rcx, %rsi
+	movq %r11, %rdi
+	call mem_rd
+	movq %rax, %rdx # get word
 	subb $1, %dl # subtract, but don't write to memory yet
 	pushf # save flags
 	popq %rax # restore flags
 	movq %rax, %rsi
 	shlq $1, %rsi # move zero bit into position
 	andq $F_ZERO, %rsi # mask in zero flag
-	andq $~F_ZERO, (%rdi) # zero zero flag
-	orq %rsi, (%rdi) # copy new zero flag value
+	andq $~F_ZERO, (%r12) # zero zero flag
+	orq %rsi, (%r12) # copy new zero flag value
 	shlq $1, %rax # move zero bit into position
 	andq $F_HCARRY, %rax # mask in zero flag
-	andq $~F_HCARRY, (%rdi) # zero zero flag
-	orq %rax, (%rdi) # copy new zero flag value
-	orq $F_SUBTRACT, (%rdi) # set subtract flag
+	andq $~F_HCARRY, (%r12) # zero zero flag
+	orq %rax, (%r12) # copy new zero flag value
+	orq $F_SUBTRACT, (%r12) # set subtract flag
 	incq %r13
 	movq %rcx, %rsi
 	ret
@@ -2318,11 +2334,11 @@ op_dec_mem:
  *
  */
 op_inc_mem:
-	movq $regs_sets, %rdi # pointer to registers
-	incq PC(%rdi)
-	movq HL(%rdi), %rcx # copy HL
-	andq $~F_HCARRY, (%rdi) # clear HCARRY
-	andq $~F_SUBTRACT, (%rdi) # clear SUBTRACT
+	movq $regs_sets, %r12 # pointer to registers
+	incq PC(%r12)
+	movq HL(%r12), %rcx # copy HL
+	andq $~F_HCARRY, (%r12) # clear HCARRY
+	andq $~F_SUBTRACT, (%r12) # clear SUBTRACT
 	movq $addr_sp_ptrs, %r10
 	movq %rcx, %r11 # save
 	shrq $9, %rcx # get
@@ -2330,20 +2346,23 @@ op_inc_mem:
 	addq %rcx, %r10 # point to address space
 	movq %r11, %rcx # restore
 	addq (%r10), %rcx # get offset
-	movq (%rcx), %rdx # get word
+	movq %rcx, %rsi
+	movq %r11, %rdi # restore
+	call mem_rd
+	movq %rax, %rdx # get word
 	addb $1, %dl # increment
 	pushf # save flags
 	popq %rax # restore flags
 	movq %rax, %rsi
 	shlq $1, %rsi # move zero bit into position
 	andq $F_ZERO, %rsi # mask in zero flag
-	andq $~F_ZERO, (%rdi) # zero zero flag
-	orq %rsi, (%rdi) # copy new zero flag value
+	andq $~F_ZERO, (%r12) # zero zero flag
+	orq %rsi, (%r12) # copy new zero flag value
 	shlq $1, %rax # move zero bit into position
 	andq $F_HCARRY, %rax # mask in zero flag
-	andq $~F_HCARRY, (%rdi) # zero zero flag
-	orq %rax, (%rdi) # copy new zero flag value
-	andq $~F_SUBTRACT, (%rdi) # zero zero flag
+	andq $~F_HCARRY, (%r12) # zero zero flag
+	orq %rax, (%r12) # copy new zero flag value
+	andq $~F_SUBTRACT, (%r12) # zero zero flag
 	incq %r13
 	movq %rcx, %rsi
 	ret
@@ -2474,14 +2493,15 @@ op_shf_lf_arth_mem:
 	addq %rsi, %rdi # point to address space
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
+	movq %r11, %rdi
+	call mem_rd
+	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
-	movb (%rsi), %al # copy byte
 	shrb $3, %al # move bit 7 to carry position
 	andb $F_CARRY, %al # mask in carry bit
 	andq $~F_CARRY, (%rdi) # zero carry bit
 	orb %al, (%rdi) # copy new carry
-	movq (%rsi), %rdx
 	salb %dl # rotate register with carry
 	pushf # save flags
 	popq %rcx # pop flags
@@ -2507,14 +2527,15 @@ op_shf_rgh_lg_mem:
 	addq %rsi, %rdi # point to address space
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
+	movq %r11, %rdi
+	call mem_rd
+	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
-	movb (%rsi), %al # copy byte
 	shlb $4, %al # move bit 0 to carry position
 	andb $F_CARRY, %al # mask in carry bit
 	andq $~F_CARRY, (%rdi) # zero carry bit
 	orb %al, (%rdi) # copy new carry
-	movq (%rsi), %rdx
 	shrb %dl # rotate register with carry
 	pushf # save flags
 	popq %rcx # pop flags
@@ -2540,14 +2561,15 @@ op_shf_rgh_arth_mem:
 	addq %rsi, %rdi # point to address space
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
+	movq %r11, %rdi
+	call mem_rd
+	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
-	movb (%rsi), %al # copy byte
 	shlb $4, %al # move bit 0 to carry position
 	andb $F_CARRY, %al # mask in carry bit
 	andq $~F_CARRY, (%rdi) # zero carry bit
 	orb %al, (%rdi) # copy new carry
-	movq (%rsi), %rdx
 	sarb %dl # rotate register with carry
 	pushf # save flags
 	popq %rcx # pop flags
@@ -2849,6 +2871,9 @@ op_rot_lf_mem:
 	addq %rsi, %rdi # point to address space
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
+	movq %r11, %rdi
+	call mem_rd
+	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
 	movq (%rdi), %rbx # copy flags
@@ -2857,12 +2882,10 @@ op_rot_lf_mem:
 	pushf # push x86 flags
 	andq $~1, -8(%rbp) # zero carry flag
 	orq %rbx, -8(%rbp) # copy z80 carry flag into x86 carry flag
-	movb (%rsi), %al # copy byte
 	shrb $3, %al # move bit 0 to carry position
 	andb $F_CARRY, %al # mask in carry bit
 	andq $~F_CARRY, (%rdi) # zero carry bit
 	orb %al, (%rdi) # copy new carry
-	movq (%rsi), %rdx
 	popf
 	rclb %dl # rotate register with carry
 	andq $~F_ZERO, (%rdi) # unset zero
@@ -2889,17 +2912,18 @@ op_rot_lf_c_mem:
 	addq %rsi, %rdi # point to address space
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
+	movq %r11, %rdi
+	call mem_rd
+	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
 	movq (%rdi), %rbx # copy flags
 	andq $F_CARRY, %rbx # mask carry bit
 	shrq $4, %rbx # move to carry position in x86 flags
-	movb (%rsi), %al # copy byte
 	shrb $3, %al # move bit 0 to carry position
 	andb $F_CARRY, %al # mask in carry bit
 	andq $~F_CARRY, (%rdi) # zero carry bit
 	orb %al, (%rdi) # copy new carry
-	movq (%rsi), %rdx
 	rolb %dl # rotate register with carry
 	andq $~F_ZERO, (%rdi) # unset zero
 	andq $~F_SUBTRACT, (%rdi) # unset subtract
@@ -2924,17 +2948,18 @@ op_rot_rgh_c_mem:
 	addq %rsi, %rdi # point to address space
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
+	movq %r11, %rdi
+	call mem_rd
+	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
 	movq (%rdi), %rbx # copy flags
 	andq $F_CARRY, %rbx # mask carry bit
 	shrq $4, %rbx # move to carry position in x86 flags
-	movb (%rsi), %al # copy byte
 	shlb $4, %al # move bit 0 to carry position
 	andb $F_CARRY, %al # mask in carry bit
 	andq $~F_CARRY, (%rdi) # zero carry bit
 	orb %al, (%rdi) # copy new carry
-	movq (%rsi), %rdx # read value
 	rorb %dl # rotate register with carry
 	andq $~F_ZERO, (%rdi) # unset zero
 	andq $~F_SUBTRACT, (%rdi) # unset subtract
@@ -2961,6 +2986,9 @@ op_rot_rgh_mem:
 	addq %rsi, %rdi # point to address space
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
+	movq %r11, %rdi
+	call mem_rd
+	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
 	movq (%rdi), %rbx # copy flags
@@ -2969,12 +2997,10 @@ op_rot_rgh_mem:
 	pushf # push x86 flags
 	andq $~1, -8(%rbp) # zero carry flag
 	orq %rbx, -8(%rbp) # copy z80 carry flag into x86 carry flag
-	movb (%rsi), %al # copy byte
 	shlb $4, %al # move bit 0 to carry position
 	andb $F_CARRY, %al # mask in carry bit
 	andq $~F_CARRY, (%rdi) # zero carry bit
 	orb %al, (%rdi) # copy new carry
-	movq (%rsi), %rdx
 	popf # pop new x86 flags incquding z80 carry flag
 	rcrb %dl # rotate register with carry
 	andq $~F_ZERO, (%rdi) # unset zero
@@ -3088,7 +3114,9 @@ op_swp_mem:
 	addq %rsi, %rdx # point to address space
 	movq %r10, %rsi
 	addq (%rdx), %rsi # new PC
-	movq (%rsi), %rcx # copy word
+	movq %r10, %rdi
+	call mem_rd
+	movq %rax, %rcx
 	andq $0xff, %rcx # mask in byte
 	movb %cl, %ch
 	shrw $4, %cx
@@ -3098,6 +3126,7 @@ op_swp_mem:
 	popq %rcx # restore flags
 	shlq $1, %rcx # move zero bit to position
 	andq $F_ZERO, %rcx # mask in zero bit
+	movq $regs_sets, %rdi
 	andq $~F_ZERO, (%rdi) # zero flag bit
 	orq %rcx, (%rdi) # copy new zero bit
 	andq $~F_CARRY, (%rdi) # zero flag bit
@@ -3124,9 +3153,12 @@ op_set_mem:
 	addq %rsi, %rdi # point to address space
 	movq %r11, %rsi # restore
 	addq (%rdi), %rsi # new PC
+	movq %r11, %rdi # restore
+	movq %rdx, %rbx
+	call mem_rd
+	movq %rax, %rdx
 	xorq %rcx, %rcx # zero
-	movb 3(%rdx), %ch # extract bit to mask
-	movq (%rsi), %rdx
+	movb 3(%rbx), %ch # extract bit to mask
 	orb %ch, %dl # copy new register
 	incq %r13
 	ret
@@ -3177,19 +3209,15 @@ op_rst_mem:
 	andq $0x78, %rsi #  offset to pointer in addr_sp_ptrs
 	addq %rsi, %rdi # point to address space
 	movq %r11, %rsi # restore
-	cmpq $0x8000, %rsi
-	jb 1f
 	addq (%rdi), %rsi # new PC
+	movq %r11, %rdi # restore
+	movq %rdx, %rbx
+	call mem_rd
+	movq %rax, %rdx
 	xorq %rcx, %rcx # zero
-	movb 3(%rdx), %ch # extract bit to mask
+	movb 3(%rbx), %ch # extract bit to mask
 	notb %ch # mask out bit
-	movq (%rsi), %rdx
 	andb %ch, %dl # copy new register
-	ret
-# ugly hack XXX
-1:
-	addq (%rdi), %rsi # new PC
-	movq (%rsi), %rdx
 	ret
 
 /*
@@ -3207,12 +3235,17 @@ op_bit_mem:
 	addq %rbx, %rcx # point to address space
 	movq  %r11, %rbx # restore
 	addq (%rcx), %rbx # new PC
-	movb 3(%rdx), %ch # extract byte to mask
-	testb %ch, (%rbx) # test bit
+	movq %rbx, %rsi
+	movq  %r11, %rdi # restore
+	movq %rdx, %rbx
+	call mem_rd
+	movb 3(%rbx), %ch # extract byte to mask
+	testb %ch, %al # test bit
 	pushf # push flags
 	popq %rbx # pop flags
 	shlq $1, %rbx # copy zero flag to position
 	andq $F_ZERO, %rbx # mask in zero flag
+	movq $regs_sets, %rdi # pointer to registers
 	andq $~F_ZERO, (%rdi) # clear zero flag
 	orq %rbx, (%rdi) # copy zero flag
 	andq $~F_SUBTRACT, (%rdi) # unset flag
@@ -3349,16 +3382,32 @@ op_call_z:
 	addq $12, %r14
 	movq $regs_sets, %r10 # pointer to registers
 	subq $2, SP(%r10) # SP-=4 XXX SP-=2 for z80
-	movq PC(%r10), %r12
-	movq SP(%r10), %rbp
-	movq $addr_sp_ptrs, %rdi
-	movq %rbp, %rax # save
-	shrq $9, %rbp # get
-	andq $0x78, %rbp #  offset to pointer in addr_sp_ptrs
-	addq %rbp, %rdi # point to address space
-	movq %rax, %rbp # restore
-	addq (%rdi), %rbp # new PC
-	movw %r12w, (%rbp)
+	movq PC(%r10), %rsi
+	movq SP(%r10), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %r10
+	call mem_wr
+	popq %r10
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	pushq %r10
+	call mem_wr
+	popq %r10
 	movq -2(%r13), %r13 # copy immediate value
 	andq $0xffff, %r13 # mask in word
 	movq $addr_sp_ptrs, %rdi
@@ -3389,16 +3438,32 @@ op_call_nz:
 	addq $12, %r14
 	movq $regs_sets, %r10 # pointer to registers
 	subq $2, SP(%r10) # SP-=4 XXX SP-=2 for z80
-	movq PC(%r10), %r12
-	movq SP(%r10), %rbp
-	movq $addr_sp_ptrs, %rdi
-	movq %rbp, %rax # save
-	shrq $9, %rbp # get
-	andq $0x78, %rbp #  offset to pointer in addr_sp_ptrs
-	addq %rbp, %rdi # point to address space
-	movq %rax, %rbp # restore
-	addq (%rdi), %rbp # new PC
-	movw %r12w, (%rbp)
+	movq PC(%r10), %rsi
+	movq SP(%r10), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %r10
+	call mem_wr
+	popq %r10
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	pushq %r10
+	call mem_wr
+	popq %r10
 	movq -2(%r13), %r13 # copy immediate value
 	andq $0xffff, %r13 # mask in word
 	movq $addr_sp_ptrs, %rdi
@@ -3429,16 +3494,32 @@ op_call_nc:
 	addq $12, %r14
 	movq $regs_sets, %r10 # pointer to registers
 	subq $2, SP(%r10) # SP-=4 XXX SP-=2 for z80
-	movq PC(%r10), %r12
-	movq SP(%r10), %rbp
-	movq $addr_sp_ptrs, %rdi
-	movq %rbp, %rax # save
-	shrq $9, %rbp # get
-	andq $0x78, %rbp #  offset to pointer in addr_sp_ptrs
-	addq %rbp, %rdi # point to address space
-	movq %rax, %rbp # restore
-	addq (%rdi), %rbp # new PC
-	movw %r12w, (%rbp)
+	movq PC(%r10), %rsi
+	movq SP(%r10), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %r10
+	call mem_wr
+	popq %r10
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	pushq %r10
+	call mem_wr
+	popq %r10
 	movq -2(%r13), %r13 # copy immediate value
 	andq $0xffff, %r13 # mask in word
 	movq $addr_sp_ptrs, %rdi
@@ -3469,16 +3550,32 @@ op_call_c:
 	addq $12, %r14
 	movq $regs_sets, %r10 # pointer to registers
 	subq $2, SP(%r10) # SP-=4 XXX SP-=2 for z80
-	movq PC(%r10), %r12
-	movq SP(%r10), %rbp
-	movq $addr_sp_ptrs, %rdi
-	movq %rbp, %rax # save
-	shrq $9, %rbp # get
-	andq $0x78, %rbp #  offset to pointer in addr_sp_ptrs
-	addq %rbp, %rdi # point to address space
-	movq %rax, %rbp # restore
-	addq (%rdi), %rbp # new PC
-	movw %r12w, (%rbp)
+	movq PC(%r10), %rsi
+	movq SP(%r10), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %r10
+	call mem_wr
+	popq %r10
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	pushq %r10
+	call mem_wr
+	popq %r10
 	movq -2(%r13), %r13 # copy immediate value
 	andq $0xffff, %r13 # mask in word
 	movq $addr_sp_ptrs, %rdi
@@ -3501,17 +3598,33 @@ op_call:
 	addq $3, %r13 # PC when return
 	movq $regs_sets, %r10 # pointer to registers
 	subq $2, SP(%r10) # SP-=4 XXX SP-=2 for z80
-	movq PC(%r10), %r12
-	addq $3, %r12 # new PC
-	movq SP(%r10), %rbp
-	movq $addr_sp_ptrs, %rdi
-	movq %rbp, %rax # save
-	shrq $9, %rbp # get
-	andq $0x78, %rbp #  offset to pointer in addr_sp_ptrs
-	addq %rbp, %rdi # point to address space
-	movq %rax, %rbp # restore
-	addq (%rdi), %rbp # new PC
-	movw %r12w, (%rbp)
+	movq PC(%r10), %rsi
+	addq $3, %rsi # new PC
+	movq SP(%r10), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %r10
+	call mem_wr
+	popq %r10
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	pushq %r10
+	call mem_wr
+	popq %r10
 	movq -2(%r13), %r13 # copy immediate value
 	andq $0xffff, %r13 # mask in word
 	movq $addr_sp_ptrs, %rdi
@@ -3534,17 +3647,33 @@ op_reset_0:
 	incq %r13 # PC when return
 	movq $regs_sets, %r10 # pointer to registers
 	subq $2, SP(%r10) # SP-=4 XXX SP-=2 for z80
-	movq PC(%r10), %r12
-	addq $1, %r12 # new PC
-	movq SP(%r10), %rbp
-	movq $addr_sp_ptrs, %rdi
-	movq %rbp, %rax # save
-	shrq $9, %rbp # get
-	andq $0x78, %rbp #  offset to pointer in addr_sp_ptrs
-	addq %rbp, %rdi # point to address space
-	movq %rax, %rbp # restore
-	addq (%rdi), %rbp # new PC
-	movw %r12w, (%rbp)
+	movq PC(%r10), %rsi
+	addq $1, %rsi # new PC
+	movq SP(%r10), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %r10
+	call mem_wr
+	popq %r10
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	pushq %r10
+	call mem_wr
+	popq %r10
 	movq $0, %r13 # copy immediate value
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
@@ -3566,17 +3695,33 @@ op_reset_8h:
 	incq %r13 # PC when return
 	movq $regs_sets, %r10 # pointer to registers
 	subq $2, SP(%r10) # SP-=4 XXX SP-=2 for z80
-	movq PC(%r10), %r12
-	addq $1, %r12 # new PC
-	movq SP(%r10), %rbp
-	movq $addr_sp_ptrs, %rdi
-	movq %rbp, %rax # save
-	shrq $9, %rbp # get
-	andq $0x78, %rbp #  offset to pointer in addr_sp_ptrs
-	addq %rbp, %rdi # point to address space
-	movq %rax, %rbp # restore
-	addq (%rdi), %rbp # new PC
-	movw %r12w, (%rbp)
+	movq PC(%r10), %rsi
+	addq $1, %rsi # new PC
+	movq SP(%r10), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %r10
+	call mem_wr
+	popq %r10
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	pushq %r10
+	call mem_wr
+	popq %r10
 	movq $8, %r13 # copy immediate value
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
@@ -3598,17 +3743,33 @@ op_reset_10h:
 	incq %r13 # PC when return
 	movq $regs_sets, %r10 # pointer to registers
 	subq $2, SP(%r10) # SP-=4 XXX SP-=2 for z80
-	movq PC(%r10), %r12
-	addq $1, %r12 # new PC
-	movq SP(%r10), %rbp
-	movq $addr_sp_ptrs, %rdi
-	movq %rbp, %rax # save
-	shrq $9, %rbp # get
-	andq $0x78, %rbp #  offset to pointer in addr_sp_ptrs
-	addq %rbp, %rdi # point to address space
-	movq %rax, %rbp # restore
-	addq (%rdi), %rbp # new PC
-	movw %r12w, (%rbp)
+	movq PC(%r10), %rsi
+	addq $1, %rsi # new PC
+	movq SP(%r10), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %r10
+	call mem_wr
+	popq %r10
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	pushq %r10
+	call mem_wr
+	popq %r10
 	movq $16, %r13 # copy immediate value
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
@@ -3637,9 +3798,24 @@ op_ret:
 	addq %r13, %rdi # point to address space
 	movq %r11, %r13 # restore
 	addq (%rdi), %r13
-	movq (%r13), %r13
+	movq %r13, %rsi
+	movq %r11, %rdi # restore
+	pushq %r10
+	pushq %rsi
+	pushq %rdi
+	call mem_rd
+	movq %rax, %r12
+	pop %rdi
+	pop %rsi
+	incq %rsi
+	incq %rdi
+	call mem_rd
+	shlq $8, %rax
+	orb %r12b, %al
+	pop %r10
+	movq %rax, %r13
 	andq $0xffff, %r13
-	movq %r13, PC(%r10) # new PC
+	movq %rax, PC(%r10) # new PC
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
 	shrq $9, %r13 # get
@@ -3659,17 +3835,33 @@ op_reset_18h:
 	incq %r13 # PC when return
 	movq $regs_sets, %r10 # pointer to registers
 	subq $2, SP(%r10) # SP-=4 XXX SP-=2 for z80
-	movq PC(%r10), %r12
-	addq $1, %r12 # new PC
-	movq SP(%r10), %rbp
-	movq $addr_sp_ptrs, %rdi
-	movq %rbp, %rax # save
-	shrq $9, %rbp # get
-	andq $0x78, %rbp #  offset to pointer in addr_sp_ptrs
-	addq %rbp, %rdi # point to address space
-	movq %rax, %rbp # restore
-	addq (%rdi), %rbp # new PC
-	movw %r12w, (%rbp)
+	movq PC(%r10), %rsi
+	addq $1, %rsi # new PC
+	movq SP(%r10), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %r10
+	call mem_wr
+	popq %r10
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	pushq %r10
+	call mem_wr
+	popq %r10
 	movq $24, %r13 # copy immediate value
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
@@ -3691,17 +3883,33 @@ op_reset_20h:
 	incq %r13 # PC when return
 	movq $regs_sets, %r10 # pointer to registers
 	subq $2, SP(%r10) # SP-=4 XXX SP-=2 for z80
-	movq PC(%r10), %r12
-	addq $1, %r12 # new PC
-	movq SP(%r10), %rbp
-	movq $addr_sp_ptrs, %rdi
-	movq %rbp, %rax # save
-	shrq $9, %rbp # get
-	andq $0x78, %rbp #  offset to pointer in addr_sp_ptrs
-	addq %rbp, %rdi # point to address space
-	movq %rax, %rbp # restore
-	addq (%rdi), %rbp # new PC
-	movw %r12w, (%rbp)
+	movq PC(%r10), %rsi
+	addq $1, %rsi # new PC
+	movq SP(%r10), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %r10
+	call mem_wr
+	popq %r10
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	pushq %r10
+	call mem_wr
+	popq %r10
 	movq $32, %r13 # copy immediate value
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
@@ -3723,17 +3931,33 @@ op_reset_28h:
 	incq %r13 # PC when return
 	movq $regs_sets, %r10 # pointer to registers
 	subq $2, SP(%r10) # SP-=4 XXX SP-=2 for z80
-	movq PC(%r10), %r12
-	addq $1, %r12 # new PC
-	movq SP(%r10), %rbp
-	movq $addr_sp_ptrs, %rdi
-	movq %rbp, %rax # save
-	shrq $9, %rbp # get
-	andq $0x78, %rbp #  offset to pointer in addr_sp_ptrs
-	addq %rbp, %rdi # point to address space
-	movq %rax, %rbp # restore
-	addq (%rdi), %rbp # new PC
-	movw %r12w, (%rbp)
+	movq PC(%r10), %rsi
+	addq $1, %rsi # new PC
+	movq SP(%r10), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %r10
+	call mem_wr
+	popq %r10
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	pushq %r10
+	call mem_wr
+	popq %r10
 	movq $40, %r13 # copy immediate value
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
@@ -3755,17 +3979,33 @@ op_reset_30h:
 	incq %r13 # PC when return
 	movq $regs_sets, %r10 # pointer to registers
 	subq $2, SP(%r10) # SP-=4 XXX SP-=2 for z80
-	movq PC(%r10), %r12
-	addq $1, %r12 # new PC
-	movq SP(%r10), %rbp
-	movq $addr_sp_ptrs, %rdi
-	movq %rbp, %rax # save
-	shrq $9, %rbp # get
-	andq $0x78, %rbp #  offset to pointer in addr_sp_ptrs
-	addq %rbp, %rdi # point to address space
-	movq %rax, %rbp # restore
-	addq (%rdi), %rbp # new PC
-	movw %r12w, (%rbp)
+	movq PC(%r10), %rsi
+	addq $1, %rsi # new PC
+	movq SP(%r10), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %r10
+	call mem_wr
+	popq %r10
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	pushq %r10
+	call mem_wr
+	popq %r10
 	movq $48, %r13 # copy immediate value
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
@@ -3787,17 +4027,33 @@ op_reset_38h:
 	incq %r13 # PC when return
 	movq $regs_sets, %r10 # pointer to registers
 	subq $2, SP(%r10) # SP-=4 XXX SP-=2 for z80
-	movq PC(%r10), %r12
-	addq $1, %r12 # new PC
-	movq SP(%r10), %rbp
-	movq $addr_sp_ptrs, %rdi
-	movq %rbp, %rax # save
-	shrq $9, %rbp # get
-	andq $0x78, %rbp #  offset to pointer in addr_sp_ptrs
-	addq %rbp, %rdi # point to address space
-	movq %rax, %rbp # restore
-	addq (%rdi), %rbp # new PC
-	movw %r12w, (%rbp)
+	movq PC(%r10), %rsi
+	addq $1, %rsi # new PC
+	movq SP(%r10), %rdi
+	movq $addr_sp_ptrs, %rdx
+	movq %rdi, %rax # save
+	shrq $9, %rdi # get
+	andq $0x78, %rdi #  offset to pointer in addr_sp_ptrs
+	addq %rdi, %rdx # point to address space
+	movq %rax, %rdi # restore
+	addq (%rdx), %rdi # new PC
+	movq %rdi, %rdx
+	movq %rax, %rdi # restore
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %r10
+	call mem_wr
+	popq %r10
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	incq %rdi
+	incq %rdx
+	shrq $8, %rsi
+	pushq %r10
+	call mem_wr
+	popq %r10
 	movq $56, %r13 # copy immediate value
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
@@ -3831,9 +4087,24 @@ op_ret_z:
 	addq %r13, %rdi # point to address space
 	movq %r11, %r13 # restore
 	addq (%rdi), %r13
-	movq (%r13), %r13
+	movq %r13, %rsi
+	movq %r11, %rdi # restore
+	pushq %r10
+	pushq %rsi
+	pushq %rdi
+	call mem_rd
+	movq %rax, %r12
+	pop %rdi
+	pop %rsi
+	incq %rsi
+	incq %rdi
+	call mem_rd
+	shlq $8, %rax
+	orb %r12b, %al
+	pop %r10
+	movq %rax, %r13
 	andq $0xffff, %r13
-	movq %r13, PC(%r10) # new PC
+	movq %rax, PC(%r10) # new PC
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
 	shrq $9, %r13 # get
@@ -3866,9 +4137,24 @@ op_ret_nz:
 	addq %r13, %rdi # point to address space
 	movq %r11, %r13 # restore
 	addq (%rdi), %r13
-	movq (%r13), %r13
+	movq %r13, %rsi
+	movq %r11, %rdi # restore
+	pushq %r10
+	pushq %rsi
+	pushq %rdi
+	call mem_rd
+	movq %rax, %r12
+	pop %rdi
+	pop %rsi
+	incq %rsi
+	incq %rdi
+	call mem_rd
+	shlq $8, %rax
+	orb %r12b, %al
+	pop %r10
+	movq %rax, %r13
 	andq $0xffff, %r13
-	movq %r13, PC(%r10) # new PC
+	movq %rax, PC(%r10) # new PC
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
 	shrq $9, %r13 # get
@@ -3901,9 +4187,24 @@ op_ret_nc:
 	addq %r13, %rdi # point to address space
 	movq %r11, %r13 # restore
 	addq (%rdi), %r13
-	movq (%r13), %r13
+	movq %r13, %rsi
+	movq %r11, %rdi # restore
+	pushq %r10
+	pushq %rsi
+	pushq %rdi
+	call mem_rd
+	movq %rax, %r12
+	pop %rdi
+	pop %rsi
+	incq %rsi
+	incq %rdi
+	call mem_rd
+	shlq $8, %rax
+	orb %r12b, %al
+	pop %r10
+	movq %rax, %r13
 	andq $0xffff, %r13
-	movq %r13, PC(%r10) # new PC
+	movq %rax, PC(%r10) # new PC
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
 	shrq $9, %r13 # get
@@ -3936,9 +4237,24 @@ op_ret_c:
 	addq %r13, %rdi # point to address space
 	movq %r11, %r13 # restore
 	addq (%rdi), %r13
-	movq (%r13), %r13
+	movq %r13, %rsi
+	movq %r11, %rdi # restore
+	pushq %r10
+	pushq %rsi
+	pushq %rdi
+	call mem_rd
+	movq %rax, %r12
+	pop %rdi
+	pop %rsi
+	incq %rsi
+	incq %rdi
+	call mem_rd
+	shlq $8, %rax
+	orb %r12b, %al
+	pop %r10
+	movq %rax, %r13
 	andq $0xffff, %r13
-	movq %r13, PC(%r10) # new PC
+	movq %rax, PC(%r10) # new PC
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
 	shrq $9, %r13 # get

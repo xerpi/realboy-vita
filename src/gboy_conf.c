@@ -172,13 +172,11 @@ do_conf(char *str, int off)
 				num_ascii[1] = '\0';
 				toint = atoi(num_ascii);
 				if (toint == 2)
-					gboy_mode=CGB;
+					gboy_hw=CGB;
 				else if (toint == 1)
-					gboy_mode=0;
+					gboy_hw=DMG;
 				else if (toint == 0)
-					;
-				else
-					return 0;
+					gboy_hw=AUTO;
 				break;
 				}
 			case 9:

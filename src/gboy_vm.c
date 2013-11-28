@@ -98,6 +98,50 @@ ld_boot()
 	return 0;
 }
 
+static void
+gb_hw_reset()
+{
+	/* VisualBoy 1.8 */
+	// clean Wram
+	// This kinda emulates the startup state of Wram on GB/C (not very accurate,
+	// but way closer to the reality than filling it with 00es or FFes).
+	// On GBA/GBASP, it's kinda filled with random data.
+	// In all cases, most of the 2nd bank is filled with 00s.
+	// The starting data are important for some 'buggy' games, like Buster Brothers or
+	// Karamuchou ha Oosawagi!.
+	memset(addr_sp, 0xff, 0x10000);
+	int temp;
+	for (temp = 0xC000; temp < 0xE000; temp++) {
+		if ((temp & 0x8) ^((temp & 0x800)>>8))
+		{
+			if (gboy_hw & CGB)
+				addr_sp[temp] = 0x0;
+			else
+				addr_sp[temp] = 0x0f;
+		}
+		else
+			addr_sp[temp] = 0xff;
+	}
+
+	/* VisualBoy 1.8 */
+	// clean Wram 2
+	// This kinda emulates the startup state of Wram on GBC (not very accurate,
+	// but way closer to the reality than filling it with 00es or FFes).
+	// On GBA/GBASP, it's kinda filled with random data.
+	// In all cases, most of the 2nd bank is filled with 00s.
+	// The starting data are important for some 'buggy' games, like Buster Brothers or
+	// Karamuchou ha Oosawagi!
+	if (gboy_mode == CGB)
+	{
+		memcpy(gb_cart.cart_wram_bank, addr_sp+0xc000, 0x1000);
+		memcpy(gb_cart.cart_wram_bank+0x1000, addr_sp+0xc000, 0x1000);
+		memcpy(gb_cart.cart_wram_bank+0x3000, addr_sp+0xc000, 0x1000);
+		memcpy(gb_cart.cart_wram_bank+0x4000, addr_sp+0xc000, 0x1000);
+		memcpy(gb_cart.cart_wram_bank+0x5000, addr_sp+0xc000, 0x1000);
+		memcpy(gb_cart.cart_wram_bank+0x6000, addr_sp+0xc000, 0x1000);
+	}
+}
+
 /*
  * Set initial state for Virtual Machine.
  * Used when boot ROM is not executed.
@@ -195,6 +239,34 @@ gboy_setup()
 	addr_sp[0xffbb] = 0;
 }
 
+static void
+sel_emu_mode()
+{
+	if (gboy_hw == DMG)
+		gboy_mode = DMG;
+	else if (gboy_hw == CGB) {
+		if (gb_cart.cart_cgb == 1)
+			gboy_mode = CGB;
+		else
+			gboy_mode = DMG;
+	}
+	else if (gboy_hw == SGB) {
+		if (gb_cart.cart_sgb == 1)
+			gboy_mode = SGB;
+		else
+			gboy_mode = DMG;
+	}
+	/* gboy_hw == AUTO */
+	else {
+		if (gb_cart.cart_cgb == 1)
+			gboy_mode = CGB;
+		else if (gb_cart.cart_sgb == 1)
+			gboy_mode = SGB;
+		else
+			gboy_mode = DMG;
+	}
+}
+
 /*
  * Parse cartridge information and print it.
  */
@@ -221,8 +293,15 @@ parse_cart_hdr()
 
 	gb_cart.cart_licensee[2] = 0; // End string with NULL
 
-	if ( ((gb_cart.cart_sgb |= cart_init_rd[SGB_FLG] & 0x03) == 0x03))
+	/* Set supported modes by cartridge */
+	if (cart_init_rd[CGB_FLG] & 0x80) {
+		gb_cart.cart_cgb=1;
+		printf("CGB Support\n");
+	}
+	if (cart_init_rd[SGB_FLG] & 0x03) {
+		gb_cart.cart_sgb=1;
 		printf("SGB Support\n");
+	}
 	
 	/* Copy type, ROM size and RAM size */
 	gb_cart.cart_type = cart_init_rd[CAR_TYP];
@@ -292,6 +371,7 @@ alloc_addr_sp()
 	/* If CGB, assign second bank of VRAM and WRAM banks */
 	if (gboy_mode==CGB) {
 		gb_cart.cart_vram_bank=(char *)malloc(0x2000);
+		memset(gb_cart.cart_vram_bank, 0x00, 0x2000);
 		gb_cart.cart_wram_bank=(char *)malloc(0x1000*7);
 		gb_cart.cart_cuvram_bank=0;
 		gb_cart.cart_cuwram_bank=0;
@@ -378,9 +458,11 @@ start_vm()
 			break;
 	}
 
-	/* Set CGB mode if Game Boy Color supported by cartridge */
-	if (cart_init_rd[CGB_FLG] == 0x80 || cart_init_rd[CGB_FLG] == 0xc0)
-		gboy_mode=CGB;
+	/* Get information from cartridge's header */
+	parse_cart_hdr();
+
+	/* Select final emulation mode according to user settings and modes supported by cartridge */
+	sel_emu_mode();
 
 	/* 
 	 * If valid ROM (XXX this doesn't actually test for the validity of a ROM; 
@@ -388,8 +470,6 @@ start_vm()
 	 */
 	if (file_logo_size==LOG_SIZ)
 	{
-		/* Get information from cartridge's header */
-		parse_cart_hdr();
 		/* Allocate and initialize address space */
 		alloc_addr_sp();
 		/* Initialize MBC driver */
@@ -401,6 +481,7 @@ start_vm()
 		vid_start();
 		/* Initialize the sound subsystem */
 		snd_start();
+		//gb_hw_reset();
 		/* Load boot rom */
 		if (use_boot_rom) {
 			/* If error loading boot ROM, just fallback to boot without it */	
@@ -449,7 +530,7 @@ start_vm()
 	}
 
 	/* Release resources */
-	if (use_boot_rom)
+	if (use_boot_rom && boot_file != NULL)
 		fclose(boot_file);
 	fclose(rom_file);
 	vid_reset();

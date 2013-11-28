@@ -140,7 +140,10 @@
 #define WRITE 1
 #define MAX_STRS 8 // maximum strings
 #define NUM_CMDS 6 // number of commands in CLI interface
+#define AUTO -1
+#define DMG 0
 #define CGB 1
+#define SGB 2
 
 /*
  * Structures used by RealBoy
@@ -154,6 +157,7 @@ struct gb_cart {
 	Uint8 cart_rom_size;
 	Uint8 cart_ram_size;
 	Uint8 cart_sgb; // cartridge supports SGB
+	Uint8 cart_cgb; // cartridge supports CGB
 	Uint32 cart_curom_bank;
 	Uint32 cart_curam_bank;
 	Uint32 cart_cuvram_bank;
@@ -232,6 +236,7 @@ extern double freq_tbl_snd4[256];
 /* Misc globals */
 extern FILE *boot_file;
 extern Uint32 gboy_mode;
+extern Uint32 gboy_hw;
 extern FILE *rom_file;
 extern Uint8 addr_sp[];
 extern long ints_offs[];

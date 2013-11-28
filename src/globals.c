@@ -52,6 +52,7 @@ char *home_path;
 char *file_path;
 int use_boot_rom=0;
 Uint32 gboy_mode=0; // Game Boy/Color Game Boy mode
+Uint32 gboy_hw=0; // Game Boy/Color Game Boy hardware
 FILE *boot_file;
 FILE *rom_file;
 Uint8 addr_sp[0xffff];

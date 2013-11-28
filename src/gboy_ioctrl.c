@@ -440,13 +440,15 @@ lcd_ctrl(int lcdc_new)
 }
 
 void
-io_ctrl(Uint8 io_off, Uint8 io_new)
+io_ctrl_wr(Uint8 io_off, Uint8 io_new)
 {
 	char *ptr_reg;
 
 	switch (io_off) {
 		case 0x00:
 			joy_update(io_new, addr_sp[0xff00]);
+			if (gboy_mode == SGB)
+				;
 			return;
 		case 0x01:
 			break;
