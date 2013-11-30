@@ -19,17 +19,6 @@
 #include "gboy.h"
 
 /* Special assembly-exports declarations */
-extern Uint32 spr_pal_inc_indx;
-extern Uint32 spr_pal_cur_indx;
-extern Uint16 spr_pal[8][4];
-extern Uint32 pal_inc_indx;
-extern Uint32 pal_cur_indx;
-extern Uint16 bg_pal[8][4];
-extern long hbln_dma_src;
-extern long hbln_dma_dst;
-extern long hbln_dma;
-extern long hdma_on;
-extern long cpu_cur_mode;
 extern long gb_hblank_clks[2];
 extern long gb_vbln_clks[2];
 extern long lcd_vbln_hbln_ctrl;
@@ -39,9 +28,12 @@ extern long tac_reload;
 extern long tac_on;
 extern long addr_sp_ptrs[16];
 extern void write_sound_reg(unsigned char,unsigned char);
-//extern unsigned char read_sound_reg(unsigned short);
-extern long win_curline;
-long dma_pend=0;
+
+static void
+write_sgb_packet(Uint8 val)
+{
+	do_sgb_packet(val);
+}
 
 static void
 write_ly_reg(Uint8 val)
@@ -78,75 +70,27 @@ write_hdma4(Uint8 val)
 }
 
 static void
-do_spr_pal_wr(Uint8 val)
+write_spr_pal(Uint8 val)
 {
-	char *ptr_spr_pal = (char *)(*spr_pal);
-
-	ptr_spr_pal+=spr_pal_cur_indx;
-
-	*ptr_spr_pal=val;
-
-	addr_sp[0xff6b] = val;
-	if (spr_pal_inc_indx)
-	{
-		spr_pal_cur_indx++;
-		spr_pal_cur_indx &= 0x3f;
-		/* Keep bits 8 and 7; increment bits 1-6 */
-		addr_sp[0xff6a] = spr_pal_cur_indx|0x80;
-	}
+	do_spr_pal_wr(val);
 }
 
 static void
-do_back_pal_wr(Uint8 val)
+write_back_pal(Uint8 val)
 {
-	char *ptr_bg_pal = (char *)(*bg_pal);
-
-	ptr_bg_pal+=pal_cur_indx;
-
-	*ptr_bg_pal=val;
-
-	addr_sp[0xff69] = val;
-	if (pal_inc_indx)
-	{
-		pal_cur_indx++;
-		pal_cur_indx &=0x3f;
-		/* Keep bits 8 and 7; increment bits 1-6 */
-		addr_sp[0xff68] = pal_cur_indx|0x80;
-	}
+	do_back_pal_wr(val);
 }
 
 static void
-do_spr_pal(Uint8 val)
+write_spr(Uint8 val)
 {
-	if (val&0x80)
-		spr_pal_inc_indx=1;
-	else
-		spr_pal_inc_indx=0;
-
-	spr_pal_cur_indx=val&0x3f;
-	addr_sp[0xff6a] = val&0xbf;
-
-	/* XXX Hack so byte can be read from background palette with existing code */
-	char *ptr_spr_pal = (char *)(*spr_pal);
-	ptr_spr_pal+=spr_pal_cur_indx;
-	addr_sp[0xff6b] = *ptr_spr_pal; // write byte from palette to register
+	do_spr_pal(val);
 }
 
 static void
-do_back_pal(Uint8 val)
+write_back(Uint8 val)
 {
-	if (val&0x80)
-		pal_inc_indx=1;
-	else
-		pal_inc_indx=0;
-
-	pal_cur_indx=val&0x3f;
-	addr_sp[0xff68] = val&0xbf;
-
-	/* XXX Hack so byte can be read from background palette with existing code */
-	char *ptr_bg_pal = (char *)(*bg_pal);
-	ptr_bg_pal+=pal_cur_indx;
-	addr_sp[0xff69] = *ptr_bg_pal; // write byte from palette to register
+	do_back_pal(val);
 }
 
 static void
@@ -182,67 +126,9 @@ cgb_speed_switch(Uint8 val)
  * Game Boy Color only.
  */
 static void
-do_vram_dma(Uint8 val)
+write_vram_dma(Uint8 val)
 {
-	long *ptr_addr_ptrs = (long *)&addr_sp_ptrs;
-	char *ptr_src;
-	char *ptr_dst, *tmp_ptr;
-	int val_offs, i, trans_len;
-
-	if (((val&0x80)==0) && (hdma_on))
-	{
-		addr_sp[0xff55] = 0xff;
-		hdma_on=0;
-		return;
-	}
-
-	trans_len = ((val&0x7f)+1)<<4; // transfer length
-
-	val_offs = *(int *)(addr_sp+0xff51); // offset to pointers
-	ptr_src = (char *)(ptr_addr_ptrs[(val_offs&0xf0)>>4]);
-	val_offs <<= 8;
-	tmp_ptr = (char *)&val_offs;
-	tmp_ptr[0] = tmp_ptr[2];
-	val_offs = (val_offs&0xfff0); // index to ptr_addr_ptrs
-	ptr_src += val_offs;
-
-	ptr_dst = (char *)(ptr_addr_ptrs[8]);
-	val_offs = *(int *)(addr_sp+0xff53); // offset to pointers
-	val_offs <<= 8;
-	tmp_ptr = (char *)&val_offs;
-	tmp_ptr[0] = tmp_ptr[2];
-	val_offs = (val_offs&0x1ff0); // index to ptr_addr_ptrs
-	ptr_dst += val_offs + 0x8000;
-
-	/* General-Purpose DMA */
-	if ((val&0x80)==0)
-	{
-		hdma_on=0; // disable HBlank-Driven DMA
-		if (cpu_cur_mode == 1)
-			dma_pend = 231 + 16 *(val&0x7f);
-		else
-			dma_pend = 231 + 8 *(val&0x7f);
-
-		/* Copy stream */
-		for (i=0; i<trans_len; i++)
-		{
-			ptr_dst[i] = ptr_src[i];
-			if ((++addr_sp[0xff52])==0)
-				++addr_sp[0xff51];
-			if ((++addr_sp[0xff54])==0)
-				++addr_sp[0xff53];
-		}
-		addr_sp[0xff55]=0xff;
-	}
-	/* HBlank-Driven DMA */
-	else {
-		hdma_on = 1;
-		hbln_dma = val&0x7f;
-		/* XXX Portable? Any modern architecture with pointers sizes other than 4/8 bytes? */
-		hbln_dma_src = (long)ptr_src & (sizeof(char *) == 4 ? (Uint32)(~1) : (Uint64)(~1));
-		hbln_dma_dst = (long)ptr_dst & (sizeof(char *) == 4 ? (Uint32)(~1) : (Uint64)(~1));
-		addr_sp[0xff55] = val&0x7f;
-	}
+	do_vram_dma(val);
 }
 
 static void
@@ -448,7 +334,7 @@ io_ctrl_wr(Uint8 io_off, Uint8 io_new)
 		case 0x00:
 			joy_update(io_new, addr_sp[0xff00]);
 			if (gboy_mode == SGB)
-				;
+				write_sgb_packet(io_new);
 			return;
 		case 0x01:
 			break;
@@ -687,7 +573,7 @@ io_ctrl_wr(Uint8 io_off, Uint8 io_new)
 			return;
 		case 0x55:
 			if (gboy_mode==1) // CGB ONLY
-				do_vram_dma(io_new);
+				write_vram_dma(io_new);
 			return;
 		case 0x56:
 			break;
@@ -727,19 +613,19 @@ io_ctrl_wr(Uint8 io_off, Uint8 io_new)
 			break;
 		case 0x68:
 			if (gboy_mode==1) // CGB ONLY
-				do_back_pal(io_new);
+				write_back(io_new);
 			return;
 		case 0x69:
 			if (gboy_mode==1) // CGB ONLY
-				do_back_pal_wr(io_new);
+				write_back_pal(io_new);
 			return;
 		case 0x6a:
 			if (gboy_mode==1) // CGB ONLY
-				do_spr_pal(io_new);
+				write_spr(io_new);
 			return;
 		case 0x6b:
 			if (gboy_mode==1) // CGB ONLY
-				do_spr_pal_wr(io_new);
+				write_spr_pal(io_new);
 			return;
 		case 0x6c:
 			break;

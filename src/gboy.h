@@ -222,6 +222,8 @@ extern char *rom_sz_vec[];
 /* Video-related globals */
 extern Uint32 pal_grey[4];
 extern Uint32 pal_color[32*32*32];
+extern Uint32 pal_sgb[4][4]; // 32-bit palette for Super Game Boy
+extern Uint8 sgb_pal_map[20][18];
 extern SDL_Surface *screen;
 extern SDL_Surface *back;
 /* Debug-related globals */

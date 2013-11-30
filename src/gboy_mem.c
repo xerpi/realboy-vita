@@ -44,5 +44,8 @@ mem_rd(Uint16 gb_addr, Uint8 *host_addr)
 //	
 //}
 
+	if (gb_addr == 0xff00 && gboy_mode==SGB)
+		return sgb_read();
+
 	return *host_addr;
 }

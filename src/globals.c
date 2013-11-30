@@ -33,6 +33,8 @@ char *rom_sz_vec[] = { "Rom size 32kb", "Rom size 64kb", "Rom size 128kb",
 /* Video-related globals */
 Uint32 pal_grey[4]; // 32-bit palette for monochrome Game Boy
 Uint32 pal_color[32*32*32]; // 32-bit palette for Color Game Boy
+Uint32 pal_sgb[4][4]; // 32-bit palette for Super Game Boy
+Uint8 sgb_pal_map[20][18];
 SDL_Surface *screen=NULL; // main window
 SDL_Surface *back=NULL; // surface where pixels go
 
