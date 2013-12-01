@@ -93,6 +93,43 @@ render_win_cgb(Uint32 *buf)
 }
 
 static void
+render_win_sgb(Uint32 *buf)
+{
+	Sint16 y, x, i, x1=0;
+	Sint16 tile_num;
+	Uint8 *tile_map, *tile_ptr, color, shftr;
+	
+	/* Pointer to map */
+	if (addr_sp[0xff40]&0x40)
+		tile_map=&addr_sp[0x9c00];
+	else
+		tile_map=&addr_sp[0x9800];
+
+	/* Advance to row in tile map */
+	tile_map +=(((addr_sp[0xff44]-addr_sp[0xff4a])>>3)<<5);
+	/* Offset to row within tile */
+	y = (((addr_sp[0xff44]-addr_sp[0xff4a])&0x7)<<1);
+
+	/* Offset to column within tile */
+	x = ((addr_sp[0xff4b]-7) < 0 ? 0 : addr_sp[0xff4b]-7);
+
+	for (i=0; x<160; x+=8, i++) {
+		tile_num = tile_map[i];
+		if (!(addr_sp[0xff40]&0x10))
+			tile_num=256+(signed char)tile_num;
+		/* Pointer to tile */
+		tile_ptr = &addr_sp[0x8000+(tile_num<<4)];
+		/* Advance to row within tile */
+		tile_ptr += y;
+		for (shftr=7, x1=0; x1<8 && (x+x1)<160; x1++, shftr--) {
+			color = ((tile_ptr[0]>>shftr)&1)|((((tile_ptr[1]>>shftr))&1)<<1);
+			buf[x+x1] = pal_sgb[sgb_pal_map[x/8][addr_sp[0xff44]/8]][(addr_sp[0xff47]>>(color<<1))&3];
+			back_col[x+x1][addr_sp[0xff44]]=color;
+		}
+	}
+}
+
+static void
 render_win(Uint32 *buf)
 {
 	Sint16 y, x, i, x1=0;
@@ -166,6 +203,37 @@ render_spr_cgb(Uint32 *buf, struct spr_attr *sprite)
 			}
 			else
 				buf[sprite->x+xx] = pal_color[(spr_pal[sprite->pal_col][color])&0x7fff];
+		}
+	}
+}
+
+static void
+render_spr_sgb(Uint32 *buf, struct spr_attr *sprite)
+{
+	Uint8 *tile_ptr;
+	Uint8 xx;
+	Uint8 color, shftr;
+	Sint8 sum;
+	
+	/* Pointer to tile */
+	tile_ptr=&addr_sp[0x8000+(sprite->tile_num<<4)];
+	
+	/* Pointer to row in tile */
+	if (!sprite->yflip)
+		tile_ptr+=((sprite->yoff)<<1);
+	else 
+		tile_ptr+=(sprite->sizey-1-sprite->yoff)<<1;
+	
+	xx=sprite->xoff;
+	if (sprite->xflip)
+		shftr=xx, sum=1;
+	else
+		shftr=7-xx, sum=-1;
+	for (; xx<8; xx++, shftr+=sum) {
+		if (!(sprite->priority) || !(back_col[sprite->x+xx][addr_sp[0xff44]]))
+		{
+			if ((color = ((tile_ptr[0]>>shftr)&1)|((((tile_ptr[1]>>shftr))&1)<<1)))
+				buf[sprite->x+xx] = pal_sgb[sgb_pal_map[sprite->x+xx/8][addr_sp[0xff44]/8]][(addr_sp[0xff48+sprite->pal]>>(color<<1))&3];
 		}
 	}
 }
@@ -406,6 +474,8 @@ render_scanline(long skip)
   			render_win(buf);
 		else if (gboy_mode==CGB)
 			render_win_cgb(buf);
+		else
+			render_win_sgb(buf);
 	}
 	
 	if (addr_sp[0xff40]&2) 
@@ -417,6 +487,9 @@ render_scanline(long skip)
 		else if (gboy_mode==CGB)
 			for (i=nb_spr-1; i>=0; i--)
 				render_spr_cgb(buf, &spr_attr[i]);
+		else
+			for (i=nb_spr-1; i>=0; i--)
+				render_spr_sgb(buf, &spr_attr[i]);
 	}
 }
 

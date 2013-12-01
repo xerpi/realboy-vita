@@ -258,12 +258,12 @@ sel_emu_mode()
 	}
 	/* gboy_hw == AUTO */
 	else {
-		if (gb_cart.cart_cgb == 1)
-			gboy_mode = CGB;
-		else if (gb_cart.cart_sgb == 1)
+//	if (gb_cart.cart_cgb == 1)
+//		gboy_mode = CGB;
+//	else if (gb_cart.cart_sgb == 1)
 			gboy_mode = SGB;
-		else
-			gboy_mode = DMG;
+//	else
+//		gboy_mode = DMG;
 	}
 }
 
@@ -421,7 +421,7 @@ alloc_addr_sp()
 		strncpy(save_name+i, "sav", 5);
 
  		/* Allocate space for RAM banks */
-		gb_cart.cart_ram_banks = malloc(1024*gb_cart.cart_ram_size);
+		gb_cart.cart_ram_banks = malloc(1024*(gb_cart.cart_ram_size));
 		/* Try to open RAM file */
 		if ( (gb_cart.cart_ram_fd=open_save_try(save_name)) == NULL)
 		{

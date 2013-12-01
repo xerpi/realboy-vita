@@ -37,6 +37,8 @@ Uint32 pal_sgb[4][4]; // 32-bit palette for Super Game Boy
 Uint8 sgb_pal_map[20][18];
 SDL_Surface *screen=NULL; // main window
 SDL_Surface *back=NULL; // surface where pixels go
+SDL_Surface *sgb_buf=NULL; // surface where pixels go
+SDL_Surface *sgb_buf_back=NULL; // surface where pixels go
 
 /* Debug-related globals */
 int gbddb = 0; // enable/disable debug

@@ -38,8 +38,8 @@ typedef struct tColorRGBA {
 
 SDL_Surface *_zoomSurfaceRGBA(SDL_Surface * src, SDL_Surface * dst, int flipx, int flipy, int smooth)
 {
-	static int sax[160*5];
-	static int say[160*5];
+	static int sax[256*5];
+	static int say[224*5];
 
 	int x, y, sx, sy, ssx, ssy, *csax, *csay, *salast, csx, csy, ex, ey, cx, cy, sstep, sstepx, sstepy;
 	tColorRGBA *c00, *c01, *c10, *c11;

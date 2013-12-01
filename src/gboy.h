@@ -226,6 +226,8 @@ extern Uint32 pal_sgb[4][4]; // 32-bit palette for Super Game Boy
 extern Uint8 sgb_pal_map[20][18];
 extern SDL_Surface *screen;
 extern SDL_Surface *back;
+extern SDL_Surface *sgb_buf;
+extern SDL_Surface *sgb_buf_back;
 /* Debug-related globals */
 extern int gbddb;
 extern int gbplay;

@@ -538,20 +538,20 @@ last_run:
 	jmp beg_exe
 mem_delayed:
 	movb %dl, (%rsi) # XXX do memory write
-#cmpq $0xff00, %r11
-#jb 1f
-#cmpq $0xff80, %r11
-#jae 1f
-#movq %r11, %rdi
-#movq %rdx, %rsi
-#andq $0xff, %rdi
-#andq $0xff, %rsi
-#call io_ctrl_wr
+	cmpq $0xff00, %r11
+	jb 1f
+	cmpq $0xff80, %r11
+	jae 1f
 	movq %r11, %rdi
-	movq %rsi, %r11
 	movq %rdx, %rsi
-	movq %r11, %rdx
-	call mem_wr
+	andq $0xff, %rdi
+	andq $0xff, %rsi
+	call io_ctrl_wr
+#movq %r11, %rdi
+#movq %rsi, %r11
+#movq %rdx, %rsi
+#movq %r11, %rdx
+#call mem_wr
 1:
 	movq $2, write_is_delayed
 	jmp last_run
