@@ -26,9 +26,11 @@ realboy_SOURCES += gboy_x86_64.S
 AM_CPPFLAGS = -DUSE_X86_64_ASM
 if HOST_IS_OPENBSD
 AM_LDFLAGS = -Wl,-non_shared
+else
+AM_CFLAGS = -Wno-unused-result
 endif
 else
 AM_CPPFLAGS =
 realboy_SOURCES += gboy_cpu.c
-endif
 AM_CFLAGS = -Wno-unused-result
+endif

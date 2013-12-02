@@ -1,8 +1,29 @@
+2013-12-01	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
+Version 0.2
+	* gboy_sgb.c: Added file to project for experimental Super Game Boy support. Special thanks to the gngb project.
+	* gboy_ioctrl.c: Updated code to support SGB IO protocol.
+	* gboy_lcd.c: Updated code to support SGB graphics rendering.
+	* gboy_video.c: Updated code to support SGB graphics displaying.
+	* gboy_mem.c: Added file to project for abstracting memory access.
+	* gboy_cpu.c: Updated instructions to use new memory abstraction. C version.
+	* gboy_x86_64.S: Updated instructions to use new memory abstraction. x86-64 Assembly mode.
+	* gboy_x86_64.S: Applied patch for assembling with Clang. Thanks to Thomas Klausner.
+	* gboy_vm.c: Fixed off-by-one error. Thanks to Vladimir Támara for reporting.
+	* gboy_vm.c: Added some code for initialization. Thanks to the VisualBoyAdvance project.
+	* gboy_mbc3.c: Fixed type for RTC registers. Thanks to Vladimir Támara for reporting.
+	* gboy_frame.c: Added support for emulation speedup.
+	* gboy_joy.c: Added support for emulation speedup.
+	* gboy_conf.c: Added possibility to force DMG, CGB or SGB.
+	* src/Makefile.am: Added new files for compilation.
+	* src/Makefile.am: Fixed compiling with OpenBSD; default compiler won't recognize -Wno-unused-result option.
+	* README: Updated README to reflect changes in new version.
+	* Code improvement: LOTS of code cleanups and improvements.
+
 2013-11-15	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
 Version 0.1.4
 	* gboy_keys.c: Added this file to the project for changing key bindings.
 	* gboy_conf.c: Added this file to the project for handling the new Configuration File.
-	* Makefile.am: Added new files for compilation.
+	* src/Makefile.am: Added new files for compilation.
 	* Code improvement: LOTS of code cleanups and improvements.
 
 2013-11-12	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
@@ -17,7 +38,7 @@ Version 0.1.3
 	* gboy_vm.c: Change some file-manipulation functions from POSIX to C for future porting to Windows.
 	* globals.c: Change data type for file-manipulation variables (descriptors to FILE *).
 	* gboy_cmd.c: File removed from project; no more interpreter.
-	* Makefile.am: Remove compilation of gboy_cmd.c.
+	* src/Makefile.am: Remove compilation of gboy_cmd.c.
 	* Code improvement: LOTS of code cleanups and improvements.
 
 2013-11-4	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
@@ -27,7 +48,7 @@ Version 0.1.2
 
 2013-11-3	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
 Version 0.1.1
-	* gboy_x86_64: Crucial fix to conform with ABI (some registers must be preserved across function calls).
+	* gboy_x86_64: Crucial fix to conform with ABI (some registers must be preserved across function calls). Thanks to Vladimir Támara for reporting.
 	* gboy_x86_64, gboy_cpu.c: Crucial fix for handling CPU speed changes, in both Assembly and C versions. Game Boy Color-specific fix.
 	* gboy_cpu.c: Crucial fix for handling HDMA transfers; C core must now be equivalent to Assembly core. Game Boy Color-specific fix.
 	* gboy_ioctrl.c: Crucial fix when handling WRAM remap. Game Boy Color-specific fix.

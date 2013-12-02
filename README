@@ -61,6 +61,7 @@ The following is the default, non-configurable, key bindings:
 - Key '6': Enable/disable fullscreen
 - Key '7': Stop execution and launch GDDB debugger
 - Key '8': Change configurable key bindings (to make changes permanent, change the Configuration File instead (see below))
+- Key '.': Speedup emulation
 - Key 'Esc': Quit RealBoy
 
 

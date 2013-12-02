@@ -1,3 +1,10 @@
+Version 0.2:
+- add experimental support for Super Game Boy, including Super Game Boy borders.
+- add support for emulation speedup.
+- add support for forcing emulation mode (Game Boy, Color Game Boy or Super Game Boy) in Configuration File.
+- improved accuracy for startup state.
+View ChangeLog and README files for details.
+
 Version 0.1.4:
 - add support for Configuration File.
 - add support for changing key bindings.
