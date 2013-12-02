@@ -83,6 +83,10 @@ static const Uint8 nin_log[] = { 0xce, 0xed, 0x66, 0x66,  0xcc, 0x0d, 0x00, 0x0b
 static int
 ld_boot()
 {
+	/* No support for SGB boot ROM yet */
+	if (gboy_mode == SGB)
+		return -1;
+
 	/* Open file XXX */
 	if ( (boot_file = fopen(gb_boot_strs[gboy_mode], "r")) == NULL) {
 		perror("Error open\n");
@@ -244,12 +248,14 @@ sel_emu_mode()
 {
 	if (gboy_hw == DMG)
 		gboy_mode = DMG;
-	else if (gboy_hw == CGB) {
-		if (gb_cart.cart_cgb == 1)
+	else if (gboy_hw == CGB)
+		if (gb_cart.cart_cgb == 1 || use_boot_rom)
 			gboy_mode = CGB;
-		else
+		else {
+			printf("\n\n****************************************************\n");
+			printf("ROMS not supporting CGB features require executing boot ROM. See README\nForcing DMG Mode...\n\n");
 			gboy_mode = DMG;
-	}
+		}
 	else if (gboy_hw == SGB) {
 		if (gb_cart.cart_sgb == 1)
 			gboy_mode = SGB;
@@ -258,12 +264,12 @@ sel_emu_mode()
 	}
 	/* gboy_hw == AUTO */
 	else {
-//	if (gb_cart.cart_cgb == 1)
-//		gboy_mode = CGB;
-//	else if (gb_cart.cart_sgb == 1)
-			gboy_mode = SGB;
-//	else
-//		gboy_mode = DMG;
+		if (gb_cart.cart_cgb == 1)
+			gboy_mode = CGB;
+		else if (gb_cart.cart_sgb == 1)
+	  		gboy_mode = SGB;
+		else
+			gboy_mode = DMG;
 	}
 }
 
@@ -421,7 +427,7 @@ alloc_addr_sp()
 		strncpy(save_name+i, "sav", 5);
 
  		/* Allocate space for RAM banks */
-		gb_cart.cart_ram_banks = malloc(1024*(gb_cart.cart_ram_size));
+		gb_cart.cart_ram_banks = malloc(1024*gb_cart.cart_ram_size);
 		/* Try to open RAM file */
 		if ( (gb_cart.cart_ram_fd=open_save_try(save_name)) == NULL)
 		{

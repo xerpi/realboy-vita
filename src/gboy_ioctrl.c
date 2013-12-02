@@ -150,7 +150,7 @@ do_oam_dma(unsigned int val)
 		ptr_dst[i] = ptr_src[i];
 }
 static void
-joy_update(Uint8 reg_new, Uint8 reg_old)
+joy_update(Uint8 reg_new)
 {
 	addr_sp[0xff00] = reg_new|0xcf;
 
@@ -332,7 +332,7 @@ io_ctrl_wr(Uint8 io_off, Uint8 io_new)
 
 	switch (io_off) {
 		case 0x00:
-			joy_update(io_new, addr_sp[0xff00]);
+			joy_update(io_new);
 			if (gboy_mode == SGB)
 				write_sgb_packet(io_new);
 			return;

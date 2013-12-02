@@ -1,4 +1,4 @@
-RealBoy is a Free, Fast, Yet Accurate, Game Boy/Game Boy Color Emulator for Linux/Unix.
+RealBoy is a Free, Fast and Accurate, Game Boy/Game Boy Color/Super Game Boy Emulator for Linux/Unix.
 It has both technical as well as educational goals.
 
 Technically, it aims for the following:
@@ -18,6 +18,7 @@ RealBoy is a work in progress; current features include:
 
 - Performance: For 64-bit versions of the x86 architecture (a.k.a x86_64, a.k.a amd64), an Assembly Language version of the emulator's core is provided, significantly faster than the C version.
 
+- Experimental Support for the Super Game Boy (disabled by default; see "Super Game Boy Support" below)
 - Support for MBC1, MBC3 and MBC5.
 - Support for RTC (Real Time Clock) in MBC3.
 - Support for executing the original boot ROMS (files not included for legal reasons).
@@ -68,10 +69,31 @@ Configuration Directory
 When executed for the first time, RealBoy will create the Configuration Directory '.realboy' in the user's home directory. In it, RealBoy creates the Saves Directory 'saves'; RealBoy creates and maintains save files here. Finally, RealBoy creates a default and customizable Configuration File 'RealBoy.conf'.
 
 
+Configuration File and Command-Line Arguments
+-------
+The Command-Line Arguments will override temporarily (for the duration of RealBoy's execution) options set in RealBoy.conf. Permanent changes are possible only through the Configuration File RealBoy.conf.
+
+
 Boot ROMS
 -------
 Both Game Boy and Game Boy Color execute a small program at startup (the moment when you power on the console). RealBoy is able to start emulation from here but, for legal reasons, don't include the boot files and skip their execution by default.
 If you are feeling nostalgic and want to use the boot ROMS, first you must get them somewhere (they can easily be found by googling). Next you must go to the Configuration Directory created by RealBoy in your home directory ('.realboy'), create a directory named 'boot_roms' and copy the files over there (Game Boy boot ROM must be called 'dmg_boot.bin'; Game Boy Color boot ROM must be called 'gbc_boot.bin'. Finally, when executing RealBoy, the parameter '-b' must be passed in order to tell RealBoy to attempt executing the boot ROM.
+
+
+RealBoy's Operation Modes
+-------
+RealBoy automatically detects the features supported by the executing ROM; it sets its Operation Mode according to these features. Possible Operation Modes are (Original)Game Boy, Color Game Boy and Super Game Boy. The user can force RealBoy to execute in any ot these modes. For example, if a ROM supports both Color Game Boy and Super Game Boy, RealBoy will automatically select the Color Game Boy mode; the user can, therefore, force the execution mode to Super Game Boy mode. If the executing ROM does NOT support the forced mode, RealBoy will just ignore it and fallback to a supported mode.
+
+
+Color Game Boy Support
+-------
+RealBoy fully supports emulating the Color Game Boy console. ROMS that do not explicitly support CGB mode can nontheless execute in this mode; the Color Game Boy is backwards-compatible with Game Boy ROMS. However, if you force CGB mode on a ROM that does not explicitly support it, you must supply the Game Boy Color boot ROM. ROMS supporting the Game Boy Color mode will work normally without the Game Boy Color boot ROM.
+
+
+Super Game Boy Support
+-------
+Experimental support for the most common features of Super Game Boy has been added to version 0.2. It is disabled by default. To enable Super Game Boy mode, either pass the appropriate argument to RealBoy when executing (-S), or set the appropriate variable in RealBoy.conf (gboy_mode). Any ot these will force RealBoy to execute under Super Game Boy mode. If a ROM not supporting Super Game Boy is used, RealBoy will fallback to either Color Game Boy or Game Boy mode, depending on whether the ROM supports Color Game Boy or not.
+Multiplayer is currently not implemented.
 
 
 Contact
@@ -82,4 +104,6 @@ Visit http://realboyemulator.wordpress.com for more information.
 
 Special Thanks
 --------------
-Mathieu Peponas from gngb for kindly answering an email, gngb, MESS, VisualBoyAdvance, SDL, SDL_gfx.
+Mathieu Peponas from gngb for kindly answering an email.
+Special thanks goes to the 'gngb' project; great deal of the graphics system and SGB support has been borrowed from it.
+Also, from 'gngb', 'VisualBoyAdvance' and 'MESS', I learned (and keep learning) a lot to make ReaBoy possible.

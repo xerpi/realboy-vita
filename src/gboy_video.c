@@ -185,8 +185,6 @@ vid_frame_update()
 		SDL_BlitSurface(back1, &scrR, screen, &dstR);
 	}
 
-//	while (*(long *)0x671840 != 2)
-//		;
 	SDL_Flip(screen);
 }
 

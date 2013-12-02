@@ -29,6 +29,7 @@ extern void set_fps(int);
 
 /* Locally-global variables*/
 struct option options[] = {
+	{ "video-1x", no_argument, 0, '1' },
 	{ "video-2x", no_argument, 0, '2' },
 	{ "video-3x", no_argument, 0, '3' },
 	{ "video-4x", no_argument, 0, '4' },
@@ -37,7 +38,10 @@ struct option options[] = {
 	{ "fullscreen", no_argument, 0, 'f' },
 	{ "with-boot", no_argument, 0, 'b' },
 	{ "help", no_argument, 0, 'h' },
-	{ "version", no_argument, 0, 'h' },
+	{ "version", no_argument, 0, 'v' },
+	{ "DMG", no_argument, 0, 'D' },
+	{ "CGB", no_argument, 0, 'C' },
+	{ "SGB", no_argument, 0, 'S' },
 	{ NULL, no_argument, 0, 0 }
 };
 
@@ -48,6 +52,7 @@ usage(char *cmd)
   printf("\
 \n\
 Options:\n\
+  -1, --video-1x\t\tDon't scale\n\
   -2, --video-2x\t\t2x scale\n\
   -3, --video-3x\t\t3x scale\n\
   -4, --video-4x\t\t4x scale\n\
@@ -57,6 +62,9 @@ Options:\n\
   -h, --help\t\t\tPrint this help\n\
   -d, --debug\t\t\tEnable GDDB debugger\n\
   -v, --version\t\t\tPrint current version and exit\n\
+  -D, --DMG\t\t\tForce Game Boy Mode\n\
+  -C, --CGB\t\t\tForce Color Game Boy Mode\n\
+  -S, --SGB\t\t\tForce Super Game Boy Mode\n\
 ");
 }
 
@@ -72,34 +80,35 @@ main(int argc, char *argv[])
 		return 0;
 	}
 
-	if (optind < argc) {
-		if ( (rom_file=fopen(argv[optind], "r")) == NULL)
-			perror(argv[optind]);
-		else
-			file_path = strndup(argv[optind], 256);
-	}
-	init_conf();
-
 	/* Parse arguments. */
 	int op;
 	do {
-		op = getopt_long(argc, argv, "r:234fhdbv", options, NULL);
+		op = getopt_long(argc, argv, "r:1234fhdbvDCS", options, NULL);
 		int arg;
 		switch (op) {
 			/* Video */
+			case '1':
+					vid_scale(1);
+					ignore_conf(SCALE);
+					break;
 			case '2':
 					vid_scale(2);
+					ignore_conf(SCALE);
 					break;
 			case '3':
 					vid_scale(3);
+					ignore_conf(SCALE);
 					break;
 			case '4':
 					vid_scale(4);
+					ignore_conf(SCALE);
 					break;
 			case 'f':
 					vid_toggle_fullscreen();
+					ignore_conf(FULLSCREEN);
 					break;
 			case 'r':
+					ignore_conf(FPS);
 					arg = atoi(optarg);
 					if (arg >= 10 && arg <= 60)
 						set_fps(arg);
@@ -108,6 +117,7 @@ main(int argc, char *argv[])
 					break;
 			/* Enable boot ROM */
 			case 'b':
+				ignore_conf(BOOT);
 				use_boot_rom=1;
 				break;
 			/* Print help and exit */
@@ -120,7 +130,20 @@ main(int argc, char *argv[])
 				break;
 			/* Print current version and exit */
 			case 'v':
-				printf("RealBoy 0.1.4\n\n");
+				printf("\nRealBoy 0.2\n");
+				return 0;
+			/* Force Operation Mode */
+			case 'D':
+				ignore_conf(GB_MODE);
+				gboy_hw=DMG;
+				break;
+			case 'C':
+				ignore_conf(GB_MODE);
+				gboy_hw=CGB;
+				break;
+			case 'S':
+				ignore_conf(GB_MODE);
+				gboy_hw=SGB;
 				break;
 			default:
 				break;
@@ -128,8 +151,15 @@ main(int argc, char *argv[])
 		}
 	} while (op != -1);
 
+	if (optind < argc) {
+		if ( (rom_file=fopen(argv[optind], "r")) == NULL)
+			perror(argv[optind]);
+		else
+			file_path = strndup(argv[optind], 256);
+	}
 
 	if (rom_file != NULL)	{
+		init_conf();
 		int ret_val; // value returned from emulation
 		/* Start Virtual Machine */
 		ret_val=start_vm();
@@ -139,6 +169,8 @@ main(int argc, char *argv[])
 		else
 			printf("\nThank you for using RealBoy!\n\n");
 	}
+	else
+		usage(argv[0]);
 
 	return 0;
 }

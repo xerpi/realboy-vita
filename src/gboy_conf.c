@@ -18,7 +18,12 @@
 
 #include "gboy.h"
 /* Globally local variables */
-static const char default_conf[] = "# RealBoy Configuration File.\n\n# Key mappings\nA='d'\nB='s'\nStart='\\n'\nSelect='a'\n\n# Frame rate setting. Values are from 10 to 60 inclusive.\nframe_rate=\"60\"\n\n# Video Scale: 1x, 2x, 3x, 4x.\nvideo_scale=\"1\"\n\n# Use fullscreen mode. 0=false, any other value means true\nvideo_fullscreen=\"0\"\n\n# Use boot ROM. 0=false, any other value means true\nboot_rom=\"0\"\n\n# Game Boy type. 0=Auto, 1=Force DMG, 2=Force CGB\ngboy_type=\"0\"";
+long conf_ignore_scale = 0;
+long conf_ignore_fullscreen = 0;
+long conf_ignore_fps = 0;
+long conf_ignore_boot = 0;
+long conf_ignore_mode = 0;
+static const char default_conf[] = "# RealBoy Configuration File.\n\n# Key mappings\nA='d'\nB='s'\nStart='\\n'\nSelect='a'\n\n# Frame rate setting. Values are from 10 to 60 inclusive.\nframe_rate=\"60\"\n\n# Video Scale: 1x, 2x, 3x, 4x.\nvideo_scale=\"1\"\n\n# Use fullscreen mode. 0=false, any other value means true\nvideo_fullscreen=\"0\"\n\n# Use boot ROM. 0=false, any other value means true\nboot_rom=\"0\"\n\n# Game Boy type. 0=Auto, 1=Force DMG, 2=Force CGB, 3=Force SGB\ngboy_type=\"0\"";
 static const char *conf_opts[] = { "A", "B", "Start", "Select", "frame_rate", "video_scale", "video_fullscreen", "boot_rom", "gboy_type", NULL };
 static FILE *file_conf;
 
@@ -100,85 +105,97 @@ do_conf(char *str, int off)
 				}
 				break;
 			case 4:
-				{
-				char num_ascii[3];
-				if (str[off] != '\"' || str[off+3] != '\"' || !isdigit(str[off+1]) || !isdigit(str[off+2]))
-					return 0;
-				off++;
-				num_ascii[0] = str[off];
-				num_ascii[1] = str[off+1];
-				num_ascii[2] = '\0';
-				set_fps(atoi(num_ascii));
-				break;
+				if (!conf_ignore_fps) {
+					{
+					char num_ascii[3];
+					if (str[off] != '\"' || str[off+3] != '\"' || !isdigit(str[off+1]) || !isdigit(str[off+2]))
+						return 0;
+					off++;
+					num_ascii[0] = str[off];
+					num_ascii[1] = str[off+1];
+					num_ascii[2] = '\0';
+					set_fps(atoi(num_ascii));
+					}
 				}
+				break;
 			case 5:
-				{
-				char num_ascii[2];
-				int toint;
-				if (str[off] != '\"' || str[off+2] != '\"' || !isdigit(str[off+1]))
-					return 0;
-				off++;
-				num_ascii[0] = str[off];
-				num_ascii[1] = '\0';
-				toint = atoi(num_ascii);
-				if (toint == 1 || toint == 2 ||toint == 3 ||toint == 4)
-					vid_scale(toint);
-				else
-					return 0;
-				break;
+				if (!conf_ignore_scale) {
+					{
+					char num_ascii[2];
+					int toint;
+					if (str[off] != '\"' || str[off+2] != '\"' || !isdigit(str[off+1]))
+						return 0;
+					off++;
+					num_ascii[0] = str[off];
+					num_ascii[1] = '\0';
+					toint = atoi(num_ascii);
+					if (toint == 1 || toint == 2 ||toint == 3 ||toint == 4)
+						vid_scale(toint);
+					else
+						return 0;
+					}
 				}
+				break;
 			case 6:
-				{
-				char num_ascii[2];
-				if (str[off] != '\"' || str[off+2] != '\"' || !isdigit(str[off+1]))
-					return 0;
-				off++;
-				num_ascii[0] = str[off];
-				num_ascii[1] = '\0';
-				if (atoi(num_ascii) == 1)
-					vid_set_fullscreen();
-				else if (atoi(num_ascii) == 0)
-					vid_no_fullscreen();
-				else
-					return 0;
-				break;
+				if (!conf_ignore_fullscreen) {
+					{
+					char num_ascii[2];
+					if (str[off] != '\"' || str[off+2] != '\"' || !isdigit(str[off+1]))
+						return 0;
+					off++;
+					num_ascii[0] = str[off];
+					num_ascii[1] = '\0';
+					if (atoi(num_ascii) == 1)
+						vid_set_fullscreen();
+					else if (atoi(num_ascii) == 0)
+						vid_no_fullscreen();
+					else
+						return 0;
+					}
 				}
+				break;
 			case 7:
-				{
-				char num_ascii[2];
-				int toint;
-				if (str[off] != '\"' || str[off+2] != '\"' || !isdigit(str[off+1]))
-					return 0;
-				off++;
-				num_ascii[0] = str[off];
-				num_ascii[1] = '\0';
-				toint = atoi(num_ascii);
-				if (toint == 1)
-					use_boot_rom=1;
-				else if (toint == 0)
-					use_boot_rom=0;
-				else
-					return 0;
-				break;
+				if (!conf_ignore_boot) {
+					{
+					char num_ascii[2];
+					int toint;
+					if (str[off] != '\"' || str[off+2] != '\"' || !isdigit(str[off+1]))
+						return 0;
+					off++;
+					num_ascii[0] = str[off];
+					num_ascii[1] = '\0';
+					toint = atoi(num_ascii);
+					if (toint == 1)
+						use_boot_rom=1;
+					else if (toint == 0)
+						use_boot_rom=0;
+					else
+						return 0;
+					}
 				}
+				break;
 			case 8:
-				{
-				char num_ascii[2];
-				int toint;
-				if (str[off] != '\"' || str[off+2] != '\"' || !isdigit(str[off+1]))
-					return 0;
-				off++;
-				num_ascii[0] = str[off];
-				num_ascii[1] = '\0';
-				toint = atoi(num_ascii);
-				if (toint == 2)
-					gboy_hw=CGB;
-				else if (toint == 1)
-					gboy_hw=DMG;
-				else if (toint == 0)
-					gboy_hw=AUTO;
-				break;
+				if (!conf_ignore_mode) {
+					{
+					char num_ascii[2];
+					int toint;
+					if (str[off] != '\"' || str[off+2] != '\"' || !isdigit(str[off+1]))
+						return 0;
+					off++;
+					num_ascii[0] = str[off];
+					num_ascii[1] = '\0';
+					toint = atoi(num_ascii);
+					if (toint == 3)
+						gboy_hw=SGB;
+					else if (toint == 2)
+						gboy_hw=CGB;
+					else if (toint == 1)
+						gboy_hw=DMG;
+					else if (toint == 0)
+						gboy_hw=AUTO;
+					}
 				}
+				break;
 			case 9:
 				;
 		}
@@ -235,6 +252,28 @@ apply_conf()
 }
 
 void
+ignore_conf(long ign_opt)
+{
+	switch (ign_opt) {
+		case SCALE:
+			conf_ignore_scale = 1;
+			break;
+		case FULLSCREEN:
+			conf_ignore_fullscreen = 1;
+			break;
+		case FPS:
+			conf_ignore_fps = 1;
+			break;
+		case BOOT:
+			conf_ignore_boot = 1;
+			break;
+		case GB_MODE:
+			conf_ignore_mode = 1;
+			break;
+	}
+}
+
+void
 init_conf()
 {
 	/* Get HOME path */
@@ -253,7 +292,6 @@ init_conf()
 		printf("Configuration Directory not found...\n");
 		create_dir(".realboy", 0755);
 		printf("Configuration Directory Created %s%s\n", home_path, "/.realboy");
-		printf("**********************************\n");
 	}
 	else
 		printf("\n\nFound Configuration Directory %s%s\n", home_path, "/.realboy");
@@ -263,11 +301,9 @@ init_conf()
 	found_file = search_file_dir("saves", ".");
 	/* Create saves directory if it doesn't exist */
 	if (!found_file) {
-		printf("\n**********************************\n");
 		printf("Saves Directory not found...\n");
 		create_dir("saves", 0755);
 		printf("Saves Directory Created %s%s\n", home_path, "/.realboy/saves");
-		printf("**********************************\n");
 	}
 	else
 		printf("Found Saves Directory %s%s\n", home_path, "/.realboy/saves");
@@ -276,7 +312,6 @@ init_conf()
 	found_file = search_file_dir("RealBoy.conf", ".");
 	/* Create default configuration file if it doesn't exist */
 	if (!found_file) {
-		printf("\n**********************************\n");
 		printf("Configuration File not found...\n");
 		if ( (file_conf = fopen("RealBoy.conf", "w+")) == NULL)
 			perror("fopen()");

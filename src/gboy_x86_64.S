@@ -1815,7 +1815,7 @@ op_sbc:
 	andq $F_ZERO, %rdx # mask in zero flag
 	andq $~F_ZERO, (%r10) # zero zero flag
 	orq %rdx, (%r10) # copy new zero flag
-	or $F_SUBTRACT, (%r10) # unset F_SUBTRACT
+	orq $F_SUBTRACT, (%r10) # unset F_SUBTRACT
 	movq %r11, %rdx
 	shlq $1, %rdx # move carry bit into position
 	andq $F_HCARRY, %rdx # mask in carry bit
@@ -4275,7 +4275,7 @@ op_jmp:
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
 	movq $regs_sets, %r10
-	movw %r13, PC(%r10)
+	movw %r13w, PC(%r10)
 	shrq $9, %r13 # get
 	andq $0x78, %r13 #  offset to pointer in addr_sp_ptrs
 	addq %r13, %rdi # point to address space
@@ -4303,7 +4303,7 @@ op_jmp_nz:
 	andq $0xffff, %r13 # mask in word
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
-	movw %r13, PC(%rbx)
+	movw %r13w, PC(%rbx)
 	shrq $9, %r13 # get
 	andq $0x78, %r13 #  offset to pointer in addr_sp_ptrs
 	addq %r13, %rdi # point to address space
@@ -4332,7 +4332,7 @@ op_jmp_z:
 	andq $0xffff, %r13 # mask in word
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
-	movw %r13, PC(%r10)
+	movw %r13w, PC(%r10)
 	shrq $9, %r13 # get
 	andq $0x78, %r13 #  offset to pointer in addr_sp_ptrs
 	addq %r13, %rdi # point to address space
@@ -4362,7 +4362,7 @@ op_jmp_c:
 	andq $0xffff, %r13 # mask in word
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
-	movw %r13, PC(%rbx)
+	movw %r13w, PC(%rbx)
 	shrq $9, %r13 # get
 	andq $0x78, %r13 #  offset to pointer in addr_sp_ptrs
 	addq %r13, %rdi # point to address space
@@ -4392,7 +4392,7 @@ op_jmp_nc:
 	andq $0xffff, %r13 # mask in word
 	movq $addr_sp_ptrs, %rdi
 	movq %r13, %r11 # save
-	movw %r13, PC(%rbx)
+	movw %r13w, PC(%rbx)
 	shrq $9, %r13 # get
 	andq $0x78, %r13 #  offset to pointer in addr_sp_ptrs
 	addq %r13, %rdi # point to address space

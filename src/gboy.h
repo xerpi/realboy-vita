@@ -136,6 +136,11 @@
 #define RIGHT_MASK 0x80
 
 /* Misc */
+#define SCALE 0
+#define FULLSCREEN 1
+#define FPS 2
+#define BOOT 3
+#define GB_MODE 4
 #define READ 0
 #define WRITE 1
 #define MAX_STRS 8 // maximum strings

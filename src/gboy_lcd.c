@@ -233,7 +233,7 @@ render_spr_sgb(Uint32 *buf, struct spr_attr *sprite)
 		if (!(sprite->priority) || !(back_col[sprite->x+xx][addr_sp[0xff44]]))
 		{
 			if ((color = ((tile_ptr[0]>>shftr)&1)|((((tile_ptr[1]>>shftr))&1)<<1)))
-				buf[sprite->x+xx] = pal_sgb[sgb_pal_map[sprite->x+xx/8][addr_sp[0xff44]/8]][(addr_sp[0xff48+sprite->pal]>>(color<<1))&3];
+				buf[sprite->x+xx] = pal_sgb[sgb_pal_map[sprite->x/8][addr_sp[0xff44]/8]][(addr_sp[0xff48+sprite->pal]>>(color<<1))&3];
 		}
 	}
 }
@@ -353,7 +353,6 @@ render_back_cgb(Uint32 *buf)
 		}
 		j=0;
 	}
-
 }
 
 static void

@@ -50,7 +50,8 @@ long sgb_mask=0;
 long sgb_cur_bit=0;
 long sgb_multi_player=0;
 long sgb_four_players=0;
-long sgb_next_ctrlr=0;
+long sgb_next_ctrlr=0x0f;
+long sgb_reading_ctrlr=0;
 long sgb_cur_bit_shf=0;
 long sgb_state=IDLE;
 Uint32 sgb_scpal[512][4];
@@ -194,22 +195,22 @@ void set_pal_on_block(int x1,int y1,int x2,int y2,int pal) {
 
 static void
 set_ATF_nf(int nf,int mode) {
-  int i,j,n;
-  Uint8 *t=sgb_ATF[nf];
-  /*printf("Set data from ATF \n");
-    printf("Num file %d\n",nf);
-    printf("Mode %d\n",mode);*/
-  
-  for(j=0;j<18;j++) {
-    i=0;
-    for(n=0;n<5;n++,t++) {
-      sgb_pal_map[i++][j]=(*t)>>6;
-      sgb_pal_map[i++][j]=((*t)&0x30)>>4;
-      sgb_pal_map[i++][j]=((*t)&0x0c)>>2;
-      sgb_pal_map[i++][j]=((*t)&0x03);
-    }
-  }
-//  if (mode) sgb_mask=0;
+ 	int i,j,n;
+ 	Uint8 *t=sgb_ATF[nf];
+ 	/*printf("Set data from ATF \n");
+ 	  printf("Num file %d\n",nf);
+ 	  printf("Mode %d\n",mode);*/
+ 	
+ 	for(j=0;j<18;j++) {
+ 	  i=0;
+ 	  for(n=0;n<5;n++,t++) {
+ 	    sgb_pal_map[i++][j]=(*t)>>6;
+ 	    sgb_pal_map[i++][j]=((*t)&0x30)>>4;
+ 	    sgb_pal_map[i++][j]=((*t)&0x0c)>>2;
+ 	    sgb_pal_map[i++][j]=((*t)&0x03);
+ 	  }
+ 	}
+ 	if (mode) sgb_mask=0;
 }
 
 static void
@@ -250,30 +251,30 @@ sgb_att_blk()
       switch(dataset[0]&0x07) {
       case 0x00:break;
       case 0x01:
-	set_pal_inside_block(SH,SV,EH,EV,pz);
-	set_pal_on_block(SH,SV,EH,EV,pz);
-	break;
-      case 0x02:
-	set_pal_on_block(SH,SV,EH,EV,py);
-	break;
-      case 0x03:
-	set_pal_inside_block(SH,SV,EH,EV,py);
-	set_pal_on_block(SH,SV,EH,EV,py);
-	break;
-      case 0x04:
-	set_pal_outside_block(SH,SV,EH,EV,px);
-	break;	
-      case 0x05:
-	set_pal_inside_block(SH,SV,EH,EV,pz);
-	set_pal_outside_block(SH,SV,EH,EV,px);
-	break;
-      case 0x06:
-	set_pal_outside_block(SH,SV,EH,EV,px);
-	break;
-      case 0x07:
-	set_pal_inside_block(SH,SV,EH,EV,pz);
-	set_pal_on_block(SH,SV,EH,EV,py);
-	set_pal_outside_block(SH,SV,EH,EV,px);	  
+		set_pal_inside_block(SH,SV,EH,EV,pz);
+		set_pal_on_block(SH,SV,EH,EV,pz);
+		break;
+		  case 0x02:
+		set_pal_on_block(SH,SV,EH,EV,py);
+		break;
+		  case 0x03:
+		set_pal_inside_block(SH,SV,EH,EV,py);
+		set_pal_on_block(SH,SV,EH,EV,py);
+		break;
+		  case 0x04:
+		set_pal_outside_block(SH,SV,EH,EV,px);
+		break;	
+		  case 0x05:
+		set_pal_inside_block(SH,SV,EH,EV,pz);
+		set_pal_outside_block(SH,SV,EH,EV,px);
+		break;
+		  case 0x06:
+		set_pal_outside_block(SH,SV,EH,EV,px);
+		break;
+		  case 0x07:
+		set_pal_inside_block(SH,SV,EH,EV,pz);
+		set_pal_on_block(SH,SV,EH,EV,py);
+		set_pal_outside_block(SH,SV,EH,EV,px);	  
 	break;
       }
     }
@@ -286,56 +287,56 @@ sgb_att_blk()
 static void
 sgb_att_lin()
 {
-	static long sgb_num_pack=-1;
-  int i;
-  static Sint16 nb_dataset;
-
-  if (sgb_num_pack==-1) {  // first call
-    sgb_num_pack=sgb_pack_buf[0]&0x07;
-    //printf("%d\n",sgb_num_pack);
-    //printf("Line mode\n");
-    nb_dataset=sgb_pack_buf[1];
-    //printf("nb dataset %d\n",nb_dataset);
-    i=2;
-  } else i=0;
-
-  while(nb_dataset>0 && i<SGB_PACKSIZE) {
-    nb_dataset--;
-    /*printf("mode %d\n",(sgb_pack_buf[i]&0x40));
-    printf("line %d\n",sgb_pack_buf[i]&0x1f);
-    printf("pal %d\n",(sgb_pack_buf[i]&0x60)>>5);*/
-    if ((sgb_pack_buf[i]&0x40))  // mode vertical
-      set_pal_Vline(sgb_pack_buf[i]&0x1f,(sgb_pack_buf[i]>>5)&0x03);
-    //set_pal_Vline_range(0,sgb_pack_buf[i]&0x1f,(sgb_pack_buf[i]>>5)&0x03);
-    else  // mode horizontal
-      set_pal_Hline(sgb_pack_buf[i]&0x1f,(sgb_pack_buf[i]>>5)&0x03);
-    //set_pal_Hline_range(0,sgb_pack_buf[i]&0x1f,(sgb_pack_buf[i]>>5)&0x03);
-
-    i++;
-  }
-
-  sgb_num_pack--;
-  if (sgb_num_pack==0) sgb_num_pack=-1;
+	 static long sgb_num_pack=-1;
+	 int i;
+	 static Sint16 nb_dataset;
+	
+	 if (sgb_num_pack==-1) {  // first call
+	   sgb_num_pack=sgb_pack_buf[0]&0x07;
+	   //printf("%d\n",sgb_num_pack);
+	   //printf("Line mode\n");
+	   nb_dataset=sgb_pack_buf[1];
+	   //printf("nb dataset %d\n",nb_dataset);
+	   i=2;
+	 } else i=0;
+	
+	 while(nb_dataset>0 && i<SGB_PACKSIZE) {
+	   nb_dataset--;
+	   /*printf("mode %d\n",(sgb_pack_buf[i]&0x40));
+	   printf("line %d\n",sgb_pack_buf[i]&0x1f);
+	   printf("pal %d\n",(sgb_pack_buf[i]&0x60)>>5);*/
+	   if ((sgb_pack_buf[i]&0x40))  // mode vertical
+	     set_pal_Vline(sgb_pack_buf[i]&0x1f,(sgb_pack_buf[i]>>5)&0x03);
+	   //set_pal_Vline_range(0,sgb_pack_buf[i]&0x1f,(sgb_pack_buf[i]>>5)&0x03);
+	   else  // mode horizontal
+	     set_pal_Hline(sgb_pack_buf[i]&0x1f,(sgb_pack_buf[i]>>5)&0x03);
+	   //set_pal_Hline_range(0,sgb_pack_buf[i]&0x1f,(sgb_pack_buf[i]>>5)&0x03);
+	
+	   i++;
+	 }
+	
+	 sgb_num_pack--;
+	 if (sgb_num_pack==0) sgb_num_pack=-1;
 
 }
 static void
 sgb_att_div()
 {
-  int line=sgb_pack_buf[2]&0x1f;
-  /*printf("Divide mode\n");
-    printf(((sgb_pack_buf[1]&0x40)?"Vertical\n":"Horizontal\n"));
-    printf("Line %d\n",sgb_pack_buf[2]);
-    printf("Color %d %d %d \n",(sgb_pack_buf[1]&0x30)>>4,(sgb_pack_buf[1]&0x0c)>>2,sgb_pack_buf[1]&0x03);*/
-  
-  if (!(sgb_pack_buf[1]&0x40)) { 
-    set_pal_Vline(line,(sgb_pack_buf[1]&0x30)>>4);
-    set_pal_Vline_range(0,line-1,(sgb_pack_buf[1]>>2)&0x03);
-    set_pal_Vline_range(line+1,19,(sgb_pack_buf[1]/*>>2*/)&0x03);
-  } else { 
-    set_pal_Hline(line,(sgb_pack_buf[1]&0x30)>>4);
-    set_pal_Hline_range(0,line-1,(sgb_pack_buf[1]>>2)&0x03);
-    set_pal_Hline_range(line+1,17,(sgb_pack_buf[1]/*>>2*/)&0x03);
-  }
+	 int line=sgb_pack_buf[2]&0x1f;
+	 /*printf("Divide mode\n");
+	   printf(((sgb_pack_buf[1]&0x40)?"Vertical\n":"Horizontal\n"));
+	   printf("Line %d\n",sgb_pack_buf[2]);
+	   printf("Color %d %d %d \n",(sgb_pack_buf[1]&0x30)>>4,(sgb_pack_buf[1]&0x0c)>>2,sgb_pack_buf[1]&0x03);*/
+	 
+	 if (!(sgb_pack_buf[1]&0x40)) { 
+	   set_pal_Vline(line,(sgb_pack_buf[1]&0x30)>>4);
+	   set_pal_Vline_range(0,line-1,(sgb_pack_buf[1]>>2)&0x03);
+	   set_pal_Vline_range(line+1,19,(sgb_pack_buf[1]/*>>2*/)&0x03);
+	 } else { 
+	   set_pal_Hline(line,(sgb_pack_buf[1]&0x30)>>4);
+	   set_pal_Hline_range(0,line-1,(sgb_pack_buf[1]>>2)&0x03);
+	   set_pal_Hline_range(line+1,17,(sgb_pack_buf[1]/*>>2*/)&0x03);
+	 }
 
 }
 static void
@@ -529,9 +530,9 @@ sgb_set_pal_scp()
 			r = (col16&0xf800)>>11;
 			g = (col16 & 0x7e0)>>5;
 			b = col16&0x1f;
-			r = r * 255 / 31;
-			g = g * 255 / 63;
-			b = b * 255 / 31;
+			r = (r * 255) / 31;
+			g = (g * 255) / 63;
+			b = (b * 255) / 31;
 			cur_col = (r << 16) | (g<<8) | (b);
 			sgb_scpal[i][j]=cur_col;
 		}
@@ -541,254 +542,35 @@ sgb_set_pal_scp()
 static void
 sgb_set_pal_ind()
 {
-	memcpy(pal_sgb[0],sgb_scpal[((sgb_pack_buf[2]&0x01)<<8)|sgb_pack_buf[1]],2*8);
-	memcpy(pal_sgb[1],sgb_scpal[((sgb_pack_buf[4]&0x01)<<8)|sgb_pack_buf[3]],2*8);
-	memcpy(pal_sgb[2],sgb_scpal[((sgb_pack_buf[6]&0x01)<<8)|sgb_pack_buf[5]],2*8);
-	memcpy(pal_sgb[3],sgb_scpal[((sgb_pack_buf[8]&0x01)<<8)|sgb_pack_buf[7]],2*8);
+	memcpy(pal_sgb[0], sgb_scpal[((sgb_pack_buf[2]&0x01)<<8)|sgb_pack_buf[1]], 2*8);
+	memcpy(pal_sgb[1], sgb_scpal[((sgb_pack_buf[4]&0x01)<<8)|sgb_pack_buf[3]], 2*8);
+	memcpy(pal_sgb[2], sgb_scpal[((sgb_pack_buf[6]&0x01)<<8)|sgb_pack_buf[5]], 2*8);
+	memcpy(pal_sgb[3], sgb_scpal[((sgb_pack_buf[8]&0x01)<<8)|sgb_pack_buf[7]], 2*8);
 
 	if (sgb_pack_buf[9])
 		set_ATF_nf(sgb_pack_buf[9]&0x3f, 1);
 }
 
 static void
-sgb_set_pal1()
+sgb_set_pal()
 {
 	Uint32 i, cur_col, num, col16, r, g, b;
-	Uint8 pal1=0, pal2=1;
+	Uint8 pal1, pal2;
 
-	for(i=0;i<4;i++) {
-		col16 = SGB_COLOR((sgb_pack_buf[2]<<8)|sgb_pack_buf[1]);
-		r = (col16&0xf800)>>11;
-		g = (col16 & 0x7e0)>>5;
-		b = col16&0x1f;
-		r = r * 255 / 31;
-		g = g * 255 / 63;
-		b = b * 255 / 31;
-		cur_col = (r << 16) | (g<<8) | (b);
-		pal_sgb[i][0]=cur_col;
+	switch ((sgb_pack_buf[0]>>3)&7) {
+		case 0:
+			pal1 = 0, pal2 = 1;
+			break;
+		case 1:
+			pal1 = 2, pal2 = 3;
+			break;
+		case 2:
+			pal1 = 0, pal2 = 3;
+			break;
+		case 3:
+			pal1 = 1, pal2 = 2;
+			break;
 	}
-	col16 = SGB_COLOR((sgb_pack_buf[4]<<8)|sgb_pack_buf[3]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal1][1]=cur_col;
-
-	col16 = SGB_COLOR((sgb_pack_buf[6]<<8)|sgb_pack_buf[5]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal1][2]=cur_col;
-
-	col16 = SGB_COLOR((sgb_pack_buf[8]<<8)|sgb_pack_buf[7]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal1][3]=cur_col;
-	
-	col16 = SGB_COLOR((sgb_pack_buf[10]<<8)|sgb_pack_buf[9]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal2][1]=cur_col;
-
-
-	col16 = SGB_COLOR((sgb_pack_buf[12]<<8)|sgb_pack_buf[11]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal2][2]=cur_col;
-
-	col16 = SGB_COLOR((sgb_pack_buf[14]<<8)|sgb_pack_buf[13]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal2][3]=cur_col;
-}
-static void
-sgb_set_pal2()
-{
-	Uint32 i, cur_col, num, col16, r, g, b;
-	Uint8 pal1=2, pal2=3;
-
-	for(i=0;i<4;i++) {
-		col16 = SGB_COLOR((sgb_pack_buf[2]<<8)|sgb_pack_buf[1]);
-		r = (col16&0xf800)>>11;
-		g = (col16 & 0x7e0)>>5;
-		b = col16&0x1f;
-		r = r * 255 / 31;
-		g = g * 255 / 63;
-		b = b * 255 / 31;
-		cur_col = (r << 16) | (g<<8) | (b);
-		pal_sgb[i][0]=cur_col;
-	}
-	col16 = SGB_COLOR((sgb_pack_buf[4]<<8)|sgb_pack_buf[3]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal1][1]=cur_col;
-
-	col16 = SGB_COLOR((sgb_pack_buf[6]<<8)|sgb_pack_buf[5]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal1][2]=cur_col;
-
-	col16 = SGB_COLOR((sgb_pack_buf[8]<<8)|sgb_pack_buf[7]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal1][3]=cur_col;
-	
-	col16 = SGB_COLOR((sgb_pack_buf[10]<<8)|sgb_pack_buf[9]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal2][1]=cur_col;
-
-
-	col16 = SGB_COLOR((sgb_pack_buf[12]<<8)|sgb_pack_buf[11]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal2][2]=cur_col;
-
-	col16 = SGB_COLOR((sgb_pack_buf[14]<<8)|sgb_pack_buf[13]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal2][3]=cur_col;
-}
-static void
-sgb_set_pal3()
-{
-	Uint32 i, cur_col, num, col16, r, g, b;
-	Uint8 pal1=0, pal2=3;
-
-	for(i=0;i<4;i++) {
-		col16 = SGB_COLOR((sgb_pack_buf[2]<<8)|sgb_pack_buf[1]);
-		r = (col16&0xf800)>>11;
-		g = (col16 & 0x7e0)>>5;
-		b = col16&0x1f;
-		r = r * 255 / 31;
-		g = g * 255 / 63;
-		b = b * 255 / 31;
-		cur_col = (r << 16) | (g<<8) | (b);
-		pal_sgb[i][0]=cur_col;
-	}
-	col16 = SGB_COLOR((sgb_pack_buf[4]<<8)|sgb_pack_buf[3]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal1][1]=cur_col;
-
-	col16 = SGB_COLOR((sgb_pack_buf[6]<<8)|sgb_pack_buf[5]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal1][2]=cur_col;
-
-	col16 = SGB_COLOR((sgb_pack_buf[8]<<8)|sgb_pack_buf[7]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal1][3]=cur_col;
-	
-	col16 = SGB_COLOR((sgb_pack_buf[10]<<8)|sgb_pack_buf[9]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal2][1]=cur_col;
-
-
-	col16 = SGB_COLOR((sgb_pack_buf[12]<<8)|sgb_pack_buf[11]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal2][2]=cur_col;
-
-	col16 = SGB_COLOR((sgb_pack_buf[14]<<8)|sgb_pack_buf[13]);
-	r = (col16&0xf800)>>11;
-	g = (col16 & 0x7e0)>>5;
-	b = col16&0x1f;
-	r = r * 255 / 31;
-	g = g * 255 / 63;
-	b = b * 255 / 31;
-	cur_col = (r << 16) | (g<<8) | (b);
-	pal_sgb[pal2][3]=cur_col;
-}
-static void
-sgb_set_pal4()
-{
-	Uint32 i, cur_col, num, col16, r, g, b;
-	Uint8 pal1=1, pal2=2;
 
 	for(i=0;i<4;i++) {
 		col16 = SGB_COLOR((sgb_pack_buf[2]<<8)|sgb_pack_buf[1]);
@@ -863,7 +645,7 @@ sgb_set_pal4()
 	pal_sgb[pal2][3]=cur_col;
 }
 
-void (*sgb_cmds[0x32])() = { sgb_set_pal1, sgb_set_pal2, sgb_set_pal3, sgb_set_pal4, sgb_att_blk, sgb_att_lin, sgb_att_div, sgb_att_chr, sgb_dummy, sgb_dummy, sgb_set_pal_ind, sgb_set_pal_scp, sgb_dummy, sgb_dummy, sgb_dummy, sgb_dummy, sgb_dummy, sgb_mul_req, sgb_dummy, sgb_chr_trn, sgb_pic_trn, sgb_att_atf, sgb_dat_atf, sgb_win_msk, sgb_dummy, sgb_dummy };
+void (*sgb_cmds[32])() = { sgb_set_pal, sgb_set_pal, sgb_set_pal, sgb_set_pal, sgb_att_blk, sgb_att_lin, sgb_att_div, sgb_att_chr, sgb_dummy, sgb_dummy, sgb_set_pal_ind, sgb_set_pal_scp, sgb_dummy, sgb_dummy, sgb_dummy, sgb_dummy, sgb_dummy, sgb_mul_req, sgb_dummy, sgb_chr_trn, sgb_pic_trn, sgb_att_atf, sgb_dat_atf, sgb_win_msk, sgb_dummy, sgb_dummy, sgb_dummy, sgb_dummy, sgb_dummy, sgb_dummy, sgb_dummy, sgb_dummy };
 
 static void
 sgb_reset()
@@ -908,6 +690,7 @@ sgb_is_sending(Uint8 val)
 				sgb_pack_buf[sgb_cur_bit_shf/8] |= sgb_cur_bit << (sgb_cur_bit_shf%8);
 				sgb_cur_bit_shf++;
 			}
+			sgb_reading_ctrlr = 0;
 	}
 }
 
@@ -926,8 +709,30 @@ sgb_is_reset(Uint8 val)
 static void
 sgb_is_idle(Uint8 val)
 {
-	if (val == 0x30)
-		; // Multiplayer stuff
+	if (val == 0x30) {
+		if (sgb_multi_player) {
+			if ((sgb_reading_ctrlr&7)==7) {
+				sgb_reading_ctrlr = 0;
+				sgb_next_ctrlr--;
+				if (sgb_four_players) {
+					if (sgb_next_ctrlr==0x0b)
+						sgb_next_ctrlr = 0x0f;
+				}
+				else {
+					if (sgb_next_ctrlr == 0x0d)
+						sgb_next_ctrlr = 0x0f;
+				}
+			}
+			else
+				sgb_reading_ctrlr &= 3;
+		}
+	}
+	else {
+		if (val == 0x10)
+			sgb_reading_ctrlr |= 2;
+		else if (val == 0x20)
+			sgb_reading_ctrlr |= 1;
+	}
 }
 
 void
@@ -961,40 +766,38 @@ sgb_read()
 	Uint8 val, joy;
 
 	sgb_state = IDLE;
-
-	//gbSgbReadingController |= 4;
-
+	sgb_reading_ctrlr |= 4;
 	val = addr_sp[0xff00] & 0x30;
 
 	if (val == 0x20 || val == 0x10) {
-		val &= 0xf0;
-		if (sgb_multi_player) {
-			switch (sgb_next_ctrlr) {
-				case 0x0f:
-		          joy = 0;
-		          break;
-				case 0x0e:
-		          joy = 1;
-		          break;
-				case 0x0d:
-		          joy = 2;
-		          break;
-				case 0x0c:
-		          joy = 3;
-		          break;
-				default:
-		          joy = 0;
-		          break;
-			}
-		}
-		addr_sp[0xff00] = val;
-	}
-	else {
-		if (sgb_multi_player)
-			addr_sp[0xff00] = 0xf0 | sgb_next_ctrlr;
-		else
-			addr_sp[0xff00] = 0xff;
-	}
+//val &= 0xf0;
+//if (sgb_multi_player) {
+//	switch (sgb_next_ctrlr) {
+//		case 0x0f:
+//          joy = 0;
+//          break;
+//		case 0x0e:
+//          joy = 1;
+//          break;
+//		case 0x0d:
+//          joy = 2;
+//          break;
+//		case 0x0c:
+//          joy = 3;
+//          break;
+//		default:
+//          joy = 0;
+//          break;
+//	}
+//}
+//addr_sp[0xff00] = val;
+ }
+ else {
+  	if (sgb_multi_player)
+  		addr_sp[0xff00] = 0xfc | sgb_next_ctrlr;
+//else
+//	addr_sp[0xff00] = 0xff;
+}
 
 	return addr_sp[0xff00];
 }
