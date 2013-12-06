@@ -17,65 +17,7 @@
  */
 
 #include "gboy.h"
-
-/* Addresses */
-#define NIN_LOG 0x104 // Nintendo logo starts
-#define GAM_TIT 0x134 // ASCII game title
-#define MAN_COD 0x13f // Manufacurer code
-#define CGB_FLG 0x143 // CGB support
-#define LIC_NEW 0x144 // Licensee (new)
-#define SGB_FLG 0x146 // SGB support
-#define CAR_TYP 0x147 // Memory sets supported by cartridge
-#define ROM_SIZ 0x148 // ROM size in (32KB<<n) units
-#define RAM_SIZ 0x149 // External RAM size
-#define JAP_VER 0x14a // Japanese version
-#define GAM_LIC 0x14b // Licensee
-
-/* Some sizes */
-#define CART_HDR 336 // Size of header
-#define LOG_SIZ 29 // Size of Nintendo logo
-
-/* Some external definitions */
-/* Defined in gboy_x86_64.S or gboy_cpu.c depending on which core is used */
-#ifdef USE_X86_64_ASM
-extern long regs_sets;
-
-#else
-struct regs_sets {
-	union regs {
-		Uint8 UByte[2];
-		Sint8 SByte[2];
-		Uint16 UWord;
-		Sint16 SWord;
-	} regs[6];
-};
-extern struct regs_sets regs_sets;
-#endif
-extern long gb_line_clks;
-extern long gb_vbln_clks;
-extern long gb_oam_clks;
-extern long gb_vram_clks;
-extern long gb_hblank_clks;
-extern long addr_sp_ptrs[0x10];
-
-/* Defined in globals.c */
-extern FILE *open_save_try(char *);
-extern FILE *create_save(char *);
-extern void rom_exec(int);
-extern void rom_exec(int);
-extern void mbc_init(int);
-extern Uint32 gboy_mode;
-extern Uint8 addr_sp[];
-extern int use_boot_rom;
-extern char *file_path;
-
-/* Locally-global variables */
-char *base_name;
-char *save_name;
-static const char * const gb_boot_strs[] = { "boot_roms/dmg_boot.bin", "boot_roms/gbc_boot.bin" };
-static Uint8 cart_init_rd[336]; // Temporary space for cartridge's header
-static const Uint8 nin_log[] = { 0xce, 0xed, 0x66, 0x66,  0xcc, 0x0d, 0x00, 0x0b, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0c, 0x00, 0x0d, 0x00, 0x08, 0x11, 0x1f,  0x88, 0x89, 0x00, 0x0e, 0xdc, 0xcc, 0x6e, 0xe6, 0xdd, 0xdd, 0xd9, 0x99, 0xbb, 0xbb, 0x67, 0x63,  0x6e, 0x0e, 0xec, 0xcc, 0xdd, 0xdc, 0x99, 0x9f, 0xbb, 0xb9, 0x33, 0x3e }; // Nintendo Game Boy signature
-
+#include "gboy_vm.h"
 
 /*
  * Load boot ROM.
@@ -376,9 +318,9 @@ alloc_addr_sp()
 
 	/* If CGB, assign second bank of VRAM and WRAM banks */
 	if (gboy_mode==CGB) {
-		gb_cart.cart_vram_bank=(char *)malloc(0x2000);
+		gb_cart.cart_vram_bank=(Uint8 *)malloc(0x2000);
 		memset(gb_cart.cart_vram_bank, 0x00, 0x2000);
-		gb_cart.cart_wram_bank=(char *)malloc(0x1000*7);
+		gb_cart.cart_wram_bank=(Uint8 *)malloc(0x1000*7);
 		gb_cart.cart_cuvram_bank=0;
 		gb_cart.cart_cuwram_bank=0;
 	}

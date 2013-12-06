@@ -179,8 +179,10 @@ struct gb_cart {
  * Information about the cartridge's MBC chip.
  * Do not change unless you know what you're doing;
  * assembly code use this structure, and thus is sensible 
- * to compiler-generated padding. Be careful if adding, removing
- * or changing order of elements. YOU HAVE BEEN WARNED.
+ * to compiler-generated padding. Also, there is code casting
+ * some of these values to pointers, for address manipulation.
+ * Be careful if adding, removing or changing order of elements.
+ * YOU HAVE BEEN WARNED.
  */
 struct gb_mbc {
 	void (*mbc_funcs[10])(int); // MBC generic functions
@@ -195,7 +197,6 @@ struct gb_mbc {
 /* 
  * Structures used by the commmand-line interpreter.
  */
-
 /* Doubly-linked list of commands already executed */
 struct cmd_stack {
 	char *cmd_buf;
@@ -206,48 +207,15 @@ struct cmd_stack {
 	struct cmd_stack *ptr_bk;
 };
 
-/* Pointers to beginning, end and current character of input buffer */
-struct cmd_line {
-	char *ptr_cur; // pointer to current byte in buffer
-	char *ptr_end; // pointer at the end of the buffer
-	char *ptr_beg; // pointer at the beginning of buffer
-} cmd_line;
-
-extern long nb_spr;
 /*
  * Global variables defined in globals.c
  * Comments also in globals.c
  */
-/* CLI-related globals */
-extern char inp_buf[512];
-extern char *ptr_dup;
-extern char *cmd_ptrs[MAX_STRS+2];
-extern char *ram_sz_vec[];
-extern char *rom_sz_vec[];
-/* Video-related globals */
-extern Uint32 pal_grey[4];
-extern Uint32 pal_color[32*32*32];
-extern Uint32 pal_sgb[4][4]; // 32-bit palette for Super Game Boy
-extern Uint8 sgb_pal_map[20][18];
-extern SDL_Surface *screen;
-extern SDL_Surface *back;
-extern SDL_Surface *sgb_buf;
-extern SDL_Surface *sgb_buf_back;
-/* Debug-related globals */
-extern int gbddb;
-extern int gbplay;
-/* Sound-related globals */
-extern SDL_AudioSpec desired;
-extern Sint16 *playbuf;
-extern double freq_tbl[2048];
-extern double freq_tbl_snd3[2048];
-extern double freq_tbl_snd4[256];
 /* Misc globals */
+extern char inp_buf[512];
+extern char *cmd_ptrs[MAX_STRS+2];
 extern FILE *boot_file;
-extern Uint32 gboy_mode;
-extern Uint32 gboy_hw;
 extern FILE *rom_file;
-extern Uint8 addr_sp[];
-extern long ints_offs[];
-extern const char *types_vec[];
-extern Uint32 gb_clk_rate;
+extern long gb_clk_rate;
+extern Uint8 addr_sp[0x10000];
+extern long addr_sp_ptrs[16];

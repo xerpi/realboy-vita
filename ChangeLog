@@ -1,4 +1,10 @@
 2013-12-01	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
+Version 0.2.1
+	* gboy_x86_64.S: Crucial bug that would cause segmentation fault fixed.
+	* gboy_xxx.h, main.h: Added header files for better code organization.
+	* Fixed lots of type-related warnings (Thanks, Clang).
+
+2013-12-01	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
 Version 0.2
 	* gboy_sgb.c: Added file to project for experimental Super Game Boy support. Special thanks to the gngb project.
 	* gboy_ioctrl.c: Updated code to support SGB IO protocol.

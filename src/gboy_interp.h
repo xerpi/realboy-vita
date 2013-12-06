@@ -15,38 +15,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
  */
+#define MAX_CHAR 512
 
-#include "gboy.h"
-#include "gboy_mem.h"
+/* Pointers to beginning, end and current character of input buffer */
+struct cmd_line {
+	char *ptr_cur; // pointer to current byte in buffer
+	char *ptr_end; // pointer at the end of the buffer
+	char *ptr_beg; // pointer at the beginning of buffer
+} cmd_line;
 
-void
-mem_wr(Uint16 gb_addr, Uint8 val, Uint8 *host_addr)
-{
-	if (gb_addr >= 0xff00 && gb_addr < 0xff80)
-		io_ctrl_wr(gb_addr&0xff, val);
-
-	else if (gb_addr < 0x7fff)
-		(gb_mbc.mbc_funcs[(gb_addr>>12)])(val);
-					
-	else
-		*host_addr = val;
-}
-
-Uint8
-mem_rd(Uint16 gb_addr, Uint8 *host_addr)
-{
-	if (gb_addr < 0x8000)
-		return *host_addr;
-
-	if (gb_addr > 0xe000 && gb_addr < 0xfe00)
-		gb_addr &= ~0x2000;
-
-//if (gb_addr < 0xc000) {
-//	
-//}
-
-	if (gb_addr == 0xff00 && gboy_mode==SGB)
-		return sgb_read();
-
-	return *host_addr;
-}
+static struct cmd_stack cmd_head; // head of the list
+static struct cmd_stack *cmd_cur = NULL; // pointer to current command
+struct cmd_stack *cmd_tail = &cmd_head; // pointer to last command
+extern int gboy_pars_strs(int num_cmds, const char * const gboy_cmds[], void (*gboy_funcs[])(int, char **));

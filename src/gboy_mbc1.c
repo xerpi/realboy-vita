@@ -17,8 +17,7 @@
  */
 
 #include "gboy.h"
-#define ROM_BANK_MODE 0x01
-#define RAM_BANK_MODE 0x02
+#include "gboy_mbc1.h"
 
 void
 mbc1_mode(int val)

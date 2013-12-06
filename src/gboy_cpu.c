@@ -17,120 +17,7 @@
  */
 
 #include "gboy.h"
-
-/* Misc */
-#define NULLZ 0
-
-/* Offsets to registers in address space */
-#define DIV_REG 0xff04 // DIV
-#define TIMA_REG 0xff05 // TIMA
-#define TMA_REG 0xff06 // TMA
-#define TAC_REG 0xff07 // TAC
-#define LCDC_REG 0xff40 // LCD Control
-#define LCDS_REG 0xff41 // LCD Status
-#define SCR_X 0xff43 // SCROLL X
-#define LY_REG 0xff44 // LY
-#define LYC_REG 0xff45 // LYC
-#define SPD_REG 0xff4d // Speed
-#define VRAM_DMA_SRC 0xff51 // VRAM DMA Source
-#define VRAM_DMA_DST 0xff53 // VRAM DMA Destination
-#define VRAM_DMA 0xff55 // VRAM DMA
-#define IR_REG 0xff0f // Interrupt Request
-#define IE_REG 0xffff // Interrupt Enable
-
-/* Interrupt masks in LCD Status register */
-#define LY_LYC_FLAG 0x4 // LY/LYC coincidence
-#define H_BLN_INT 0x08 // HBLANK interrupt
-#define V_BLN_INT 0x10 // VBLANK interrupt
-#define OAM_INT 0x20 // OAM interrupt
-#define LY_LYC_INT 0x40 // LY/LYC coincidence interrupt
-
-/* Bit-control masks for set, reset and bit operations */
-#define BIT_1 0x01
-#define BIT_2 0x02
-#define BIT_3 0x04
-#define BIT_4 0x08
-#define BIT_5 0x10
-#define BIT_6 0x20
-#define BIT_7 0x40
-#define BIT_8 0x80
-
-/* Flag (F) register masks */
-#define F_ZERO 0x80 // zero flag
-#define F_SUBTRACT 0x40 // add/subtract flag
-#define F_HCARRY 0x20 // half carry flag
-#define F_CARRY 0x10 // carry flag
-
-/* Addressing modes */
-#define REG 0x02 // operand is register
-#define REG_IND 0x04 // operand is in memory pointed by register
-#define IMM 0x08 // operand is immediate
-#define IMM_IND 0x10 // operand is in memory pointed by immediate value
-
-/* Addressing bytes or words */
-#define BYTE ~0xff
-#define WORD ~0xffff
-
-#define DELAY 0x4
-#define RD_XOR_WR 0x2
-#define RD_WR 0x1
-
-Uint8 cpu_halt=0;
-Uint8 inst_is_cb=0;
-Uint8 just_enabled=0;
-Uint8 del_wr=0;
-Uint8 *del_addr;
-Uint16 del_io=0;
-Uint8 cur_tcks=0;
-Uint32 write_is_delayed=0;
-long nb_spr=0;
-long chg_gam=0;
-Uint8 div_ctrl=0;
-long tac_on=0;
-long tac_counter=0;
-Uint32 skip_next_frame=0;
-long tac_reload=0;
-long hdma_on=0;
-long hbln_dma_dst;
-long hbln_dma_src;
-long hbln_dma=0;
-Uint32 spr_extr_cycles[11] = { 0, 8, 20, 32, 44, 52, 64, 76, 88, 96, 108 };
-Uint32 spr_cur_extr=0;
-Uint32 ime_flag=0;
-Uint32 cpu_cur_mode=0;
-Uint32 lcd_vbln_hbln_ctrl=0;
-Uint32 gb_clk_rate = 4194304;
-Uint32 gb_line_clks = 459;
-long gb_vbln_clks[2] = { 4590, 4590 };
-Sint32 gb_oam_clks[2] = { 80, 80 };
-long gb_hblank_clks[2] = { 200, 200 };
-Sint32 gb_vram_clks[2] = { 176, 176 };
-static Uint8 *pc;
-extern Uint32 fullscreen;
-extern void mem_wr(Uint16, Uint8, Uint8 *);
-extern Uint8 mem_rd(Uint16, Uint8 *);
-
-/* 
- * Instruction format: 
- * opcode, dest addr, dest, src addr, src, unit
- */
-struct z80_set {
-	Uint8 format[8];
-	char name[16];
-	long length;
-	void (*func)(struct z80_set *);
-};
-
-struct regs_sets {
-	union regs {
-		Uint8 UByte[2];
-		Sint8 SByte[2];
-		Uint16 UWord;
-		Sint16 SWord;
-	} regs[10];
-} regs_sets;
-long addr_sp_ptrs[16] = { 0 };
-
+#include "gboy_cpu.h"
 
 /* 
  * Group 1: Load
@@ -146,7 +33,7 @@ op_ld_sp_imm_hl(struct z80_set *rec)
 	Sint8 sum;
 
 	acc = regs_sets.regs[SP].UWord;
-	sum = *(pc+1);
+	sum = *(cpu_state.pc+1);
 	regs_sets.regs[HL].SWord = dword = regs_sets.regs[SP].SWord+sum;
 	regs_sets.regs[AF].UByte[F] = 0;
 
@@ -174,7 +61,7 @@ op_ld_sp_imm_hl(struct z80_set *rec)
 //			regs_sets.regs[AF].UByte[F] |= F_CARRY;
 //	}
 
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 
 }
@@ -188,7 +75,7 @@ void
 op_ld_reg_reg(struct z80_set *rec)
 {
 	regs_sets.regs[PC].UWord++;
-	pc++;
+	cpu_state.pc++;
 
 	regs_sets.regs[rec->format[2]&0xfe].UByte[rec->format[2]&1]= regs_sets.regs[rec->format[4]&0xfe].UByte[rec->format[4]&1];
 }
@@ -202,12 +89,12 @@ op_ld_imm_mem(struct z80_set *rec)
 {
 	Uint16 gb_addr = regs_sets.regs[HL].UWord;
 	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
-	Uint8 val = pc[1];
+	Uint8 val = cpu_state.pc[1];
 
 	mem_wr(gb_addr, val, host_addr);
 
 	regs_sets.regs[PC].UWord += 2;
-	pc += 2;
+	cpu_state.pc += 2;
 }
 
 /* 
@@ -219,7 +106,7 @@ op_ld_hl_sp(struct z80_set *rec)
 	Uint16 *ptr_sp;
 
 	regs_sets.regs[PC].UWord++;
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[SP].UWord = regs_sets.regs[HL].UWord;
 }
 
@@ -233,9 +120,9 @@ op_ld_imm_sp(struct z80_set *rec)
 
 	regs_sets.regs[PC].UWord += 3;
 	
-	ptr_imm = (Uint16 *)(pc+1);
+	ptr_imm = (Uint16 *)(cpu_state.pc+1);
 	regs_sets.regs[SP].UWord = *ptr_imm;
-	pc += 3;
+	cpu_state.pc += 3;
 }
 
 /* 
@@ -246,13 +133,13 @@ op_ld_imm_reg(struct z80_set *rec)
 {
 	switch (rec->length) {
 		case BYTE:
-				regs_sets.regs[rec->format[2]&0xfe].UByte[rec->format[2]&1] = pc[1];
-				pc+=2;
+				regs_sets.regs[rec->format[2]&0xfe].UByte[rec->format[2]&1] = cpu_state.pc[1];
+				cpu_state.pc+=2;
 				regs_sets.regs[PC].UWord += 2;
 				break;
 		case WORD:
-				regs_sets.regs[rec->format[2]].UWord = *((Uint16 *)(pc+1));
-				pc+=3;
+				regs_sets.regs[rec->format[2]].UWord = *((Uint16 *)(cpu_state.pc+1));
+				cpu_state.pc+=3;
 				regs_sets.regs[PC].UWord += 3;
 				break;
 	}
@@ -264,7 +151,7 @@ op_ld_imm_reg(struct z80_set *rec)
 void
 op_ld_reg_imm(struct z80_set *rec)
 {
-	Uint16 gb_addr = *((Uint16 *)(pc+1));
+	Uint16 gb_addr = *((Uint16 *)(cpu_state.pc+1));
 	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 
 
@@ -285,7 +172,7 @@ op_ld_reg_imm(struct z80_set *rec)
 				break;
 	}
 
-	pc+=3;
+	cpu_state.pc+=3;
 	regs_sets.regs[PC].UWord += 3;
 }
 
@@ -302,7 +189,7 @@ op_ld_reg_mem(struct z80_set *rec)
 
 	mem_wr(gb_addr, val, host_addr);
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -319,7 +206,7 @@ op_ld_mem_reg(struct z80_set *rec)
 	val = mem_rd(gb_addr, host_addr);
 	regs_sets.regs[rec->format[2]&0xfe].UByte[rec->format[2]&1] = val;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -336,7 +223,7 @@ op_ldd_reg_mem(struct z80_set *rec)
 	mem_wr(gb_addr, val, host_addr);
 
 	regs_sets.regs[HL].UWord--;
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -354,7 +241,7 @@ op_ldd_mem_reg(struct z80_set *rec)
 	regs_sets.regs[AF].UByte[A] = val;
 
 	regs_sets.regs[HL].UWord--;
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -371,7 +258,7 @@ op_ldi_reg_mem(struct z80_set *rec)
 	mem_wr(gb_addr, val, host_addr);
 
 	regs_sets.regs[HL].UWord++;
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -389,7 +276,7 @@ op_ldi_mem_reg(struct z80_set *rec)
 	regs_sets.regs[AF].UByte[A] = val;
 
 	regs_sets.regs[HL].UWord++;
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -399,14 +286,14 @@ op_ldi_mem_reg(struct z80_set *rec)
 void
 op_ld_imm_acc(struct z80_set *rec)
 {
-	Uint16 gb_addr = *((Uint16 *)(pc+1));
+	Uint16 gb_addr = *((Uint16 *)(cpu_state.pc+1));
 	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 
 	Uint8 val; 
 	val = mem_rd(gb_addr, host_addr);
 	regs_sets.regs[AF].UByte[A] = val;
 
-	pc+=3;
+	cpu_state.pc+=3;
 	regs_sets.regs[PC].UWord+=3;
 }
 
@@ -423,7 +310,7 @@ op_ld_io_reg_reg(struct z80_set *rec)
 	val = mem_rd(gb_addr, host_addr);
 	regs_sets.regs[AF].UByte[A] = val;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -433,14 +320,14 @@ op_ld_io_reg_reg(struct z80_set *rec)
 void
 op_ld_io_reg_imm(struct z80_set *rec)
 {
-	Uint16 gb_addr = (*(pc+1))+0xff00;
+	Uint16 gb_addr = (*(cpu_state.pc+1))+0xff00;
 	Uint8 *host_addr = (Uint8 *)(addr_sp_ptrs[gb_addr>>12]+gb_addr);
 
 	Uint8 val; 
 	val = mem_rd(gb_addr, host_addr);
 	regs_sets.regs[AF].UByte[A] = val;
 
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 }
 
@@ -453,7 +340,7 @@ op_ld_reg_io_reg(struct z80_set *rec)
 
 	io_ctrl_wr(regs_sets.regs[BC].UByte[0], regs_sets.regs[AF].UByte[A]);
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -463,9 +350,9 @@ op_ld_reg_io_reg(struct z80_set *rec)
 void
 op_ld_reg_io_imm(struct z80_set *rec)
 {
-	io_ctrl_wr(*(pc+1), regs_sets.regs[AF].UByte[A]);
+	io_ctrl_wr(*(cpu_state.pc+1), regs_sets.regs[AF].UByte[A]);
 
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 }
 
@@ -486,7 +373,7 @@ op_pop_af(struct z80_set *rec)
 	regs_sets.regs[AF].UWord &= (0xff00|F_HCARRY|F_CARRY|F_ZERO|F_SUBTRACT);
 	regs_sets.regs[SP].UWord += 2;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -506,7 +393,7 @@ op_pop(struct z80_set *rec)
 	regs_sets.regs[rec->format[2]].UWord = val;
 	regs_sets.regs[SP].UWord += 2;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -526,7 +413,7 @@ op_push(struct z80_set *rec)
 	mem_wr(gb_addr, (Uint8)val, host_addr);
 	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -560,7 +447,7 @@ op_add(struct z80_set *rec)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -587,7 +474,7 @@ op_add_wr(struct z80_set *rec)
 		regs_sets.regs[AF].UByte[F] |= F_CARRY;
 
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -617,7 +504,7 @@ op_add_mem(struct z80_set *rec)
 	if (regs_sets.regs[AF].UByte[A] == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -632,7 +519,7 @@ op_add_imm(struct z80_set *rec)
 	Uint8 sum;
 
 	acc = regs_sets.regs[AF].UByte[A];
-	sum = *(pc+1);
+	sum = *(cpu_state.pc+1);
 	regs_sets.regs[AF].UByte[A] += sum;
 
 	regs_sets.regs[AF].UByte[F] = 0;
@@ -646,7 +533,7 @@ op_add_imm(struct z80_set *rec)
 	if (regs_sets.regs[AF].UByte[A] == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 }
 
@@ -660,7 +547,7 @@ op_add_sp_sign(struct z80_set *rec)
 	Sint8 sum;
 
 	acc = regs_sets.regs[SP].UWord;
-	sum = *(pc+1);
+	sum = *(cpu_state.pc+1);
 	regs_sets.regs[SP].SWord += sum;
 
 	regs_sets.regs[AF].UByte[F] = 0;
@@ -688,7 +575,7 @@ op_add_sp_sign(struct z80_set *rec)
 //			regs_sets.regs[AF].UByte[F] |= F_CARRY;
 //	}
 //	
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 }
 
@@ -721,7 +608,7 @@ op_adc(struct z80_set *rec)
 	if (regs_sets.regs[AF].UByte[A] == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -757,7 +644,7 @@ op_adc_mem(struct z80_set *rec)
 	if (regs_sets.regs[AF].UByte[A] == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -773,7 +660,7 @@ op_adc_imm(struct z80_set *rec)
 	Uint16 word;
 
 	acc = word = regs_sets.regs[AF].UByte[A];
-	sum = *(pc+1);
+	sum = *(cpu_state.pc+1);
 	regs_sets.regs[AF].UByte[A] += sum;
 	word += sum;
 
@@ -793,7 +680,7 @@ op_adc_imm(struct z80_set *rec)
 	if (regs_sets.regs[AF].UByte[A] == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 }
 
@@ -824,7 +711,7 @@ op_sub(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_SUBTRACT;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -857,7 +744,7 @@ op_sub_mem(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_SUBTRACT;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -872,7 +759,7 @@ op_sub_imm(struct z80_set *rec)
 	Uint8 sub;
 
 	acc = regs_sets.regs[AF].UByte[A];
-	sub = *(pc+1);
+	sub = *(cpu_state.pc+1);
 	regs_sets.regs[AF].UByte[A] -= sub;
 
 	regs_sets.regs[AF].UByte[F] = 0;
@@ -888,7 +775,7 @@ op_sub_imm(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_SUBTRACT;
 
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 }
 
@@ -923,7 +810,7 @@ op_sbc(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_SUBTRACT;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -961,7 +848,7 @@ op_sbc_mem(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_SUBTRACT;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -977,7 +864,7 @@ op_sbc_imm(struct z80_set *rec)
 	Uint16 word;
 
 	acc = word = regs_sets.regs[AF].UByte[A];
-	sub = *(pc+1);
+	sub = *(cpu_state.pc+1);
 	word -= (sub + (regs_sets.regs[AF].UByte[F]&F_CARRY ? 1 : 0));
 	regs_sets.regs[AF].UByte[A] -= (sub + (regs_sets.regs[AF].UByte[F]&F_CARRY ? 1 : 0));
 
@@ -994,7 +881,7 @@ op_sbc_imm(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_SUBTRACT;
 
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 }
 
@@ -1018,7 +905,7 @@ op_xor_reg_accu(struct z80_set *rec)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1054,7 +941,7 @@ op_cp_mem_ind(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_SUBTRACT;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1069,7 +956,7 @@ op_cp_imm_acc(struct z80_set *rec)
 	Uint8 sub, tmp;
 
 	acc = tmp = regs_sets.regs[AF].UByte[A];
-	sub = *(pc+1);
+	sub = *(cpu_state.pc+1);
 	tmp -= sub;
 
 	regs_sets.regs[AF].UByte[F] = 0;
@@ -1085,7 +972,7 @@ op_cp_imm_acc(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_SUBTRACT;
 
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 }
 
@@ -1116,7 +1003,7 @@ op_cp_reg(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_SUBTRACT;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1141,7 +1028,7 @@ op_and_reg_accu(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_HCARRY;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1167,7 +1054,7 @@ op_and_mem_accu(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_HCARRY;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1182,7 +1069,7 @@ op_and_imm_accu(struct z80_set *rec)
 	Uint8 and;
 
 	acc = regs_sets.regs[AF].UByte[A];
-	and = *(pc+1);
+	and = *(cpu_state.pc+1);
 	regs_sets.regs[AF].UByte[A] &= and;
 
 	regs_sets.regs[AF].UByte[F] = 0;
@@ -1191,7 +1078,7 @@ op_and_imm_accu(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_HCARRY;
 
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 }
 
@@ -1206,7 +1093,7 @@ op_or_imm_accu(struct z80_set *rec)
 	Uint8 or;
 
 	acc = regs_sets.regs[AF].UByte[A];
-	or = *(pc+1);
+	or = *(cpu_state.pc+1);
 	regs_sets.regs[AF].UByte[A] |= or;
 
 	regs_sets.regs[AF].UByte[F] = 0;
@@ -1214,7 +1101,7 @@ op_or_imm_accu(struct z80_set *rec)
 	if (regs_sets.regs[AF].UByte[A] == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 }
 
@@ -1229,7 +1116,7 @@ op_xor_imm_accu(struct z80_set *rec)
 	Uint8 xor;
 
 	acc = regs_sets.regs[AF].UByte[A];
-	xor = *(pc+1);
+	xor = *(cpu_state.pc+1);
 	regs_sets.regs[AF].UByte[A] ^= xor;
 
 	regs_sets.regs[AF].UByte[F] = 0;
@@ -1237,7 +1124,7 @@ op_xor_imm_accu(struct z80_set *rec)
 	if (regs_sets.regs[AF].UByte[A] == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 }
 
@@ -1262,7 +1149,7 @@ op_or_mem_accu(struct z80_set *rec)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1286,7 +1173,7 @@ op_xor_mem_accu(struct z80_set *rec)
 	if (regs_sets.regs[AF].UByte[A] == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1309,7 +1196,7 @@ op_or_reg_accu(struct z80_set *rec)
 	if (regs_sets.regs[AF].UByte[A] == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1327,9 +1214,9 @@ op_dec_mem(struct z80_set *rec)
 	Uint8 dec;
 	dec = mem_rd(gb_addr, host_addr);
 
-	del_addr = host_addr;
-	del_io = gb_addr;
-	del_wr = dec;
+	cpu_state.del_addr = host_addr;
+	cpu_state.del_io = gb_addr;
+	cpu_state.del_wr = dec;
 
 	regs_sets.regs[AF].UByte[F] &= ~(F_ZERO|F_HCARRY);
 
@@ -1342,8 +1229,8 @@ op_dec_mem(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_SUBTRACT;
 
-	del_wr--;
-	pc++;
+	cpu_state.del_wr--;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1361,9 +1248,9 @@ op_inc_mem(struct z80_set *rec)
 	Uint8 inc;
 	inc = mem_rd(gb_addr, host_addr);
 
-	del_addr = host_addr;
-	del_io = gb_addr;
-	del_wr = inc;
+	cpu_state.del_addr = host_addr;
+	cpu_state.del_io = gb_addr;
+	cpu_state.del_wr = inc;
 
 	regs_sets.regs[AF].UByte[F] &= ~(F_SUBTRACT|F_ZERO|F_HCARRY);
 
@@ -1374,8 +1261,8 @@ op_inc_mem(struct z80_set *rec)
 	if ((inc&0xf) == 0)
 		regs_sets.regs[AF].UByte[F] |= F_HCARRY;
 
-	del_wr++;
-	pc++;
+	cpu_state.del_wr++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1402,7 +1289,7 @@ op_dec_reg(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] |= F_SUBTRACT;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1427,7 +1314,7 @@ op_inc_reg(struct z80_set *rec)
 	if ((inc&0x0f) == 0)
 		regs_sets.regs[AF].UByte[F] |= F_HCARRY;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1439,7 +1326,7 @@ void
 op_inc_reg_sp(struct z80_set *rec)
 {
 	regs_sets.regs[SP].UWord++;
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1451,7 +1338,7 @@ void
 op_dec_reg_sp(struct z80_set *rec)
 {
 	regs_sets.regs[SP].UWord--;
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1463,7 +1350,7 @@ void
 op_dec_reg_wr(struct z80_set *rec)
 {
 	regs_sets.regs[rec->format[2]].UWord--;
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1475,7 +1362,7 @@ void
 op_inc_reg_wr(struct z80_set *rec)
 {
 	regs_sets.regs[rec->format[2]].UWord++;
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1494,10 +1381,10 @@ op_shf_lf_arth_mem(struct z80_set *rec)
 	Uint8 shf;
 	shf = mem_rd(gb_addr, host_addr);
 
-	del_addr = host_addr;
-	del_io = gb_addr;
-	del_wr = shf;
-	del_wr <<= 1;
+	cpu_state.del_addr = host_addr;
+	cpu_state.del_io = gb_addr;
+	cpu_state.del_wr = shf;
+	cpu_state.del_wr <<= 1;
 
 	regs_sets.regs[AF].UByte[F] = 0;
 
@@ -1507,7 +1394,7 @@ op_shf_lf_arth_mem(struct z80_set *rec)
 	if (shf&0x80)
 		regs_sets.regs[AF].UByte[F] |= F_CARRY;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1523,10 +1410,10 @@ op_shf_rgh_lg_mem(struct z80_set *rec)
 	Uint8 shf;
 	shf = mem_rd(gb_addr, host_addr);
 
-	del_addr = host_addr;
-	del_io = gb_addr;
-	del_wr = shf;
-	del_wr >>= 1;
+	cpu_state.del_addr = host_addr;
+	cpu_state.del_io = gb_addr;
+	cpu_state.del_wr = shf;
+	cpu_state.del_wr >>= 1;
 
 	regs_sets.regs[AF].UByte[F] = 0;
 
@@ -1536,7 +1423,7 @@ op_shf_rgh_lg_mem(struct z80_set *rec)
 	if (shf&0x01)
 		regs_sets.regs[AF].UByte[F] |= F_CARRY;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1552,9 +1439,9 @@ op_shf_rgh_arth_mem(struct z80_set *rec)
 	Sint8 shf;
 	shf = (Sint8)mem_rd(gb_addr, host_addr);
 
-	del_addr = host_addr;
-	del_io = gb_addr;
-	del_wr = shf;
+	cpu_state.del_addr = host_addr;
+	cpu_state.del_io = gb_addr;
+	cpu_state.del_wr = shf;
 
 	regs_sets.regs[AF].UByte[F] = 0;
 
@@ -1564,8 +1451,8 @@ op_shf_rgh_arth_mem(struct z80_set *rec)
 	if (shf&0x01)
 		regs_sets.regs[AF].UByte[F] |= F_CARRY;
 
-	del_wr = shf>>1;
-	pc++;
+	cpu_state.del_wr = shf>>1;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1589,7 +1476,7 @@ op_shf_rgh_arth(struct z80_set *rec)
 	if (shf&0x01)
 		regs_sets.regs[AF].UByte[F] |= F_CARRY;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1613,7 +1500,7 @@ op_shf_rgh_lg(struct z80_set *rec)
 	if (shf&0x01)
 		regs_sets.regs[AF].UByte[F] |= F_CARRY;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1637,7 +1524,7 @@ op_shf_lf_arth(struct z80_set *rec)
 	if (shf&0x80)
 		regs_sets.regs[AF].UByte[F] |= F_CARRY;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1670,7 +1557,7 @@ op_rot_rgh_reg(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] &= ~(F_SUBTRACT|F_HCARRY);
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1703,7 +1590,7 @@ op_rot_lf_reg(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] &= ~(F_SUBTRACT|F_HCARRY);
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1731,7 +1618,7 @@ op_rot_rgh_c_reg(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] &= ~(F_SUBTRACT|F_HCARRY);
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1759,7 +1646,7 @@ op_rot_lf_c_reg(struct z80_set *rec)
 
 	regs_sets.regs[AF].UByte[F] &= ~(F_SUBTRACT|F_HCARRY);
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1782,7 +1669,7 @@ op_rot_lf_c_acc(struct z80_set *rec)
 	else
 		regs_sets.regs[AF].UByte[F] &= ~F_CARRY, regs_sets.regs[AF].UByte[A] &= ~0x01;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1810,7 +1697,7 @@ op_rot_lf_acc(struct z80_set *rec)
 	else
 		regs_sets.regs[AF].UByte[F] &= ~F_CARRY;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1826,29 +1713,29 @@ op_rot_lf_mem(struct z80_set *rec)
 	Uint8 rot;
 	rot = mem_rd(gb_addr, host_addr);
 
-	del_addr = host_addr;
-	del_io = gb_addr;
-	del_wr = rot;
-	del_wr <<= 1;
+	cpu_state.del_addr = host_addr;
+	cpu_state.del_io = gb_addr;
+	cpu_state.del_wr = rot;
+	cpu_state.del_wr <<= 1;
 
 	if (regs_sets.regs[AF].UByte[F]&F_CARRY)
-		del_wr |= 0x01;
+		cpu_state.del_wr |= 0x01;
 	else
-		del_wr &= ~0x01;
+		cpu_state.del_wr &= ~0x01;
 
 	if (rot&0x80)
 		regs_sets.regs[AF].UByte[F] |= F_CARRY;
 	else
 		regs_sets.regs[AF].UByte[F] &= ~F_CARRY;
 
-	if (del_wr == 0)
+	if (cpu_state.del_wr == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 	else
 		regs_sets.regs[AF].UByte[F] &= ~F_ZERO;
 
 	regs_sets.regs[AF].UByte[F] &= ~(F_SUBTRACT|F_HCARRY);
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1864,23 +1751,23 @@ op_rot_lf_c_mem(struct z80_set *rec)
 	Uint8 rot;
 	rot = mem_rd(gb_addr, host_addr);
 
-	del_addr = host_addr;
-	del_io = gb_addr;
-	del_wr = rot;
-	del_wr <<= 1;
+	cpu_state.del_addr = host_addr;
+	cpu_state.del_io = gb_addr;
+	cpu_state.del_wr = rot;
+	cpu_state.del_wr <<= 1;
 
 	if (rot&0x80)
-		regs_sets.regs[AF].UByte[F] |= F_CARRY, del_wr |= 0x01;
+		regs_sets.regs[AF].UByte[F] |= F_CARRY, cpu_state.del_wr |= 0x01;
 	else
-		regs_sets.regs[AF].UByte[F] &= ~F_CARRY, del_wr &= ~0x01;
+		regs_sets.regs[AF].UByte[F] &= ~F_CARRY, cpu_state.del_wr &= ~0x01;
 
-	if (del_wr == 0)
+	if (cpu_state.del_wr == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 	else
 		regs_sets.regs[AF].UByte[F] &= ~F_ZERO;
 	regs_sets.regs[AF].UByte[F] &= ~(F_SUBTRACT|F_HCARRY);
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1896,24 +1783,24 @@ op_rot_rgh_c_mem(struct z80_set *rec)
 	Uint8 rot;
 	rot = mem_rd(gb_addr, host_addr);
 
-	del_addr = host_addr;
-	del_io = gb_addr;
-	del_wr = rot;
-	del_wr >>= 1;
+	cpu_state.del_addr = host_addr;
+	cpu_state.del_io = gb_addr;
+	cpu_state.del_wr = rot;
+	cpu_state.del_wr >>= 1;
 
 	if (rot&0x01)
-		regs_sets.regs[AF].UByte[F] |= F_CARRY, del_wr |= 0x80;
+		regs_sets.regs[AF].UByte[F] |= F_CARRY, cpu_state.del_wr |= 0x80;
 	else
-		regs_sets.regs[AF].UByte[F] &= ~F_CARRY, del_wr &= ~0x80;
+		regs_sets.regs[AF].UByte[F] &= ~F_CARRY, cpu_state.del_wr &= ~0x80;
 
-	if (del_wr == 0)
+	if (cpu_state.del_wr == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 	else
 		regs_sets.regs[AF].UByte[F] &= ~F_ZERO;
 
 	regs_sets.regs[AF].UByte[F] &= ~(F_SUBTRACT|F_HCARRY);
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1929,29 +1816,29 @@ op_rot_rgh_mem(struct z80_set *rec)
 	Uint8 rot;
 	rot = mem_rd(gb_addr, host_addr);
 
-	del_addr = host_addr;
-	del_io = gb_addr;
-	del_wr = rot;
-	del_wr >>= 1;
+	cpu_state.del_addr = host_addr;
+	cpu_state.del_io = gb_addr;
+	cpu_state.del_wr = rot;
+	cpu_state.del_wr >>= 1;
 
 	if (regs_sets.regs[AF].UByte[F]&F_CARRY)
-		del_wr |= 0x80;
+		cpu_state.del_wr |= 0x80;
 	else
-		del_wr &= ~0x80;
+		cpu_state.del_wr &= ~0x80;
 
 	if (rot&0x01)
 		regs_sets.regs[AF].UByte[F] |= F_CARRY;
 	else
 		regs_sets.regs[AF].UByte[F] &= ~F_CARRY;
 
-	if (del_wr == 0)
+	if (cpu_state.del_wr == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 	else
 		regs_sets.regs[AF].UByte[F] &= ~F_ZERO;
 
 	regs_sets.regs[AF].UByte[F] &= ~(F_SUBTRACT|F_HCARRY);
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -1979,7 +1866,7 @@ op_rot_rgh_acc(struct z80_set *rec)
 	else
 		regs_sets.regs[AF].UByte[F] &= ~F_CARRY;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -2002,7 +1889,7 @@ op_rot_rgh_c_acc(struct z80_set *rec)
 	else
 		regs_sets.regs[AF].UByte[F] &= ~F_CARRY, regs_sets.regs[AF].UByte[A] &= ~0x80;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -2025,7 +1912,7 @@ op_swp(struct z80_set *rec)
 	if (swp == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -2041,17 +1928,17 @@ op_swp_mem(struct z80_set *rec)
 	Uint16 swp;
 	swp = (Uint16)mem_rd(gb_addr, host_addr);
 
-	del_addr = host_addr;
-	del_io = gb_addr;
+	cpu_state.del_addr = host_addr;
+	cpu_state.del_io = gb_addr;
 	swp = ((swp<<4)|(swp>>4))&0xff;
-	del_wr = swp;
+	cpu_state.del_wr = swp;
 
 	regs_sets.regs[AF].UByte[F] = 0;
 
 	if (swp == 0)
 		regs_sets.regs[AF].UByte[F] |= F_ZERO;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -2070,11 +1957,11 @@ op_set_mem(struct z80_set *rec)
 	Uint8 val;
 	val = mem_rd(gb_addr, host_addr);
 
-	del_addr = host_addr;
-	del_io = gb_addr;
-	del_wr = val;
-	del_wr |= rec->format[3];
-	pc++;
+	cpu_state.del_addr = host_addr;
+	cpu_state.del_io = gb_addr;
+	cpu_state.del_wr = val;
+	cpu_state.del_wr |= rec->format[3];
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -2086,7 +1973,7 @@ void
 op_set(struct z80_set *rec)
 {
 	regs_sets.regs[rec->format[2]&0xfe].UByte[rec->format[2]&1] |= rec->format[3];
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -2098,7 +1985,7 @@ void
 op_rst(struct z80_set *rec)
 {
 	regs_sets.regs[rec->format[2]&0xfe].UByte[rec->format[2]&1] &= ~rec->format[3];
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -2114,12 +2001,12 @@ op_rst_mem(struct z80_set *rec)
 	Uint8 val;
 	val = mem_rd(gb_addr, host_addr);
 
-	del_addr = host_addr;
-	del_io = gb_addr;
-	del_wr = val;
-	del_wr &= ~rec->format[3];
+	cpu_state.del_addr = host_addr;
+	cpu_state.del_io = gb_addr;
+	cpu_state.del_wr = val;
+	cpu_state.del_wr &= ~rec->format[3];
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -2143,7 +2030,7 @@ op_bit_mem(struct z80_set *rec)
 	regs_sets.regs[AF].UByte[F] |= F_HCARRY;
 	regs_sets.regs[AF].UByte[F] &= ~F_SUBTRACT;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -2162,7 +2049,7 @@ op_bit(struct z80_set *rec)
 	regs_sets.regs[AF].UByte[F] |= F_HCARRY;
 	regs_sets.regs[AF].UByte[F] &= ~F_SUBTRACT;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -2171,7 +2058,7 @@ op_daa(struct z80_set *rec)
 {
 	Uint16 acc, temp;
 
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 
 	acc = regs_sets.regs[AF].UByte[A];
@@ -2222,7 +2109,7 @@ op_daa(struct z80_set *rec)
 void
 op_nop(struct z80_set *rec)
 {
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 }
 
@@ -2233,14 +2120,14 @@ op_nop(struct z80_set *rec)
 void
 op_stop(struct z80_set *rec)
 {
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 
 	if (addr_sp[SPD_REG]&0x01) {
 		addr_sp[SPD_REG] = ~addr_sp[SPD_REG];
 		addr_sp[SPD_REG] &= 0x80; 
-		cpu_cur_mode = ~cpu_cur_mode;
-		cpu_cur_mode &= 1;
+		cpu_state.cpu_cur_mode = ~cpu_state.cpu_cur_mode;
+		cpu_state.cpu_cur_mode &= 1;
 	}
 }
 
@@ -2254,11 +2141,11 @@ op_stop(struct z80_set *rec)
 void
 op_call_z(struct z80_set *rec)
 {
-	pc+=3;
+	cpu_state.pc+=3;
 	regs_sets.regs[PC].UWord+=3;
 
 	if (regs_sets.regs[AF].UByte[F]&F_ZERO) {
-		cur_tcks += 12;
+		cpu_state.cur_tcks += 12;
 		regs_sets.regs[SP].UWord -= 2;
 		Uint16 val = regs_sets.regs[PC].UWord;
 		Uint16 gb_addr = regs_sets.regs[SP].UWord;
@@ -2267,8 +2154,8 @@ op_call_z(struct z80_set *rec)
 		mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
 		Uint16 *dest;
-		dest = (Uint16 *)pc;
-		pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
+		dest = (Uint16 *)cpu_state.pc;
+		cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
 		regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)-2);
 	}
 }
@@ -2280,11 +2167,11 @@ op_call_z(struct z80_set *rec)
 void
 op_call_nz(struct z80_set *rec)
 {
-	pc+=3;
+	cpu_state.pc+=3;
 	regs_sets.regs[PC].UWord+=3;
 
 	if (!(regs_sets.regs[AF].UByte[F]&F_ZERO)) {
-		cur_tcks += 12;
+		cpu_state.cur_tcks += 12;
 		regs_sets.regs[SP].UWord -= 2;
 		Uint16 val = regs_sets.regs[PC].UWord;
 		Uint16 gb_addr = regs_sets.regs[SP].UWord;
@@ -2293,8 +2180,8 @@ op_call_nz(struct z80_set *rec)
 		mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
 		Uint16 *dest;
-		dest = (Uint16 *)pc;
-		pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
+		dest = (Uint16 *)cpu_state.pc;
+		cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
 		regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)-2);
 	}
 }
@@ -2306,11 +2193,11 @@ op_call_nz(struct z80_set *rec)
 void
 op_call_nc(struct z80_set *rec)
 {
-	pc+=3;
+	cpu_state.pc+=3;
 	regs_sets.regs[PC].UWord+=3;
 
 	if (!(regs_sets.regs[AF].UByte[F]&F_CARRY)) {
-		cur_tcks += 12;
+		cpu_state.cur_tcks += 12;
 		regs_sets.regs[SP].UWord -= 2;
 		Uint16 val = regs_sets.regs[PC].UWord;
 		Uint16 gb_addr = regs_sets.regs[SP].UWord;
@@ -2319,8 +2206,8 @@ op_call_nc(struct z80_set *rec)
 		mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
 		Uint16 *dest;
-		dest = (Uint16 *)pc;
-		pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
+		dest = (Uint16 *)cpu_state.pc;
+		cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
 		regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)-2);
 	}
 }
@@ -2332,11 +2219,11 @@ op_call_nc(struct z80_set *rec)
 void
 op_call_c(struct z80_set *rec)
 {
-	pc+=3;
+	cpu_state.pc+=3;
 	regs_sets.regs[PC].UWord+=3;
 
 	if (regs_sets.regs[AF].UByte[F]&F_CARRY) {
-		cur_tcks += 12;
+		cpu_state.cur_tcks += 12;
 		regs_sets.regs[SP].UWord -= 2;
 		Uint16 val = regs_sets.regs[PC].UWord;
 		Uint16 gb_addr = regs_sets.regs[SP].UWord;
@@ -2345,8 +2232,8 @@ op_call_c(struct z80_set *rec)
 		mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
 		Uint16 *dest;
-		dest = (Uint16 *)pc;
-		pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
+		dest = (Uint16 *)cpu_state.pc;
+		cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
 		regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)-2);
 	}
 }
@@ -2368,8 +2255,8 @@ op_call(struct z80_set *rec)
 	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
 	Uint16 *dest;
-	dest = (Uint16 *)pc;
-	pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)+1))>>12]+(*(((Uint8 *)dest)+1)));
+	dest = (Uint16 *)cpu_state.pc;
+	cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)+1))>>12]+(*(((Uint8 *)dest)+1)));
 	regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)+1);
 }
 
@@ -2391,7 +2278,7 @@ op_reset_0(struct z80_set *rec)
 	mem_wr(gb_addr, (Uint8)val, host_addr);
 	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
-	pc = addr_sp;
+	cpu_state.pc = addr_sp;
 	regs_sets.regs[PC].UWord = 0;
 }
 
@@ -2413,7 +2300,7 @@ op_reset_8h(struct z80_set *rec)
 	mem_wr(gb_addr, (Uint8)val, host_addr);
 	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
-	pc = addr_sp+8;
+	cpu_state.pc = addr_sp+8;
 	regs_sets.regs[PC].UWord = 8;
 }
 
@@ -2435,7 +2322,7 @@ op_reset_10h(struct z80_set *rec)
 	mem_wr(gb_addr, (Uint8)val, host_addr);
 	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
-	pc = addr_sp+16;
+	cpu_state.pc = addr_sp+16;
 	regs_sets.regs[PC].UWord = 16;
 }
 
@@ -2455,13 +2342,13 @@ op_ret(struct z80_set *rec)
 
 	regs_sets.regs[SP].UWord += 2;
 	regs_sets.regs[PC].UWord = val;
-	pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
+	cpu_state.pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
 }
 
 void
 op_reti(struct z80_set *rec)
 {
-	ime_flag = 1;
+	cpu_state.ime_flag = 1;
 	op_ret(rec);
 }
 
@@ -2483,7 +2370,7 @@ op_reset_18h(struct z80_set *rec)
 	mem_wr(gb_addr, (Uint8)val, host_addr);
 	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
-	pc = addr_sp+24;
+	cpu_state.pc = addr_sp+24;
 	regs_sets.regs[PC].UWord = 24;
 }
 
@@ -2505,7 +2392,7 @@ op_reset_20h(struct z80_set *rec)
 	mem_wr(gb_addr, (Uint8)val, host_addr);
 	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
-	pc = addr_sp+32;
+	cpu_state.pc = addr_sp+32;
 	regs_sets.regs[PC].UWord = 32;
 }
 
@@ -2527,7 +2414,7 @@ op_reset_28h(struct z80_set *rec)
 	mem_wr(gb_addr, (Uint8)val, host_addr);
 	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
-	pc = addr_sp+40;
+	cpu_state.pc = addr_sp+40;
 	regs_sets.regs[PC].UWord = 40;
 }
 
@@ -2549,7 +2436,7 @@ op_reset_30h(struct z80_set *rec)
 	mem_wr(gb_addr, (Uint8)val, host_addr);
 	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
-	pc = addr_sp+48;
+	cpu_state.pc = addr_sp+48;
 	regs_sets.regs[PC].UWord = 48;
 }
 
@@ -2571,7 +2458,7 @@ op_reset_38h(struct z80_set *rec)
 	mem_wr(gb_addr, (Uint8)val, host_addr);
 	mem_wr(gb_addr+1, (Uint8)(val>>8), host_addr+1);
 
-	pc = addr_sp+56;
+	cpu_state.pc = addr_sp+56;
 	regs_sets.regs[PC].UWord = 56;
 }
 
@@ -2582,7 +2469,7 @@ op_reset_38h(struct z80_set *rec)
 void
 op_ret_z(struct z80_set *rec)
 {
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 
 	if (regs_sets.regs[AF].UByte[F]&F_ZERO) {
@@ -2595,8 +2482,8 @@ op_ret_z(struct z80_set *rec)
 		
 		regs_sets.regs[SP].UWord += 2;
 		regs_sets.regs[PC].UWord = val;
-		pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
-		cur_tcks += 12;
+		cpu_state.pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
+		cpu_state.cur_tcks += 12;
 	}
 }
 
@@ -2607,7 +2494,7 @@ op_ret_z(struct z80_set *rec)
 void
 op_ret_nz(struct z80_set *rec)
 {
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 
 	if (!(regs_sets.regs[AF].UByte[F]&F_ZERO)) {
@@ -2620,8 +2507,8 @@ op_ret_nz(struct z80_set *rec)
 		
 		regs_sets.regs[SP].UWord += 2;
 		regs_sets.regs[PC].UWord = val;
-		pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
-		cur_tcks += 12;
+		cpu_state.pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
+		cpu_state.cur_tcks += 12;
 	}
 }
 
@@ -2632,7 +2519,7 @@ op_ret_nz(struct z80_set *rec)
 void
 op_ret_nc(struct z80_set *rec)
 {
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 
 	if (!(regs_sets.regs[AF].UByte[F]&F_CARRY)) {
@@ -2645,8 +2532,8 @@ op_ret_nc(struct z80_set *rec)
 		
 		regs_sets.regs[SP].UWord += 2;
 		regs_sets.regs[PC].UWord = val;
-		pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
-		cur_tcks += 12;
+		cpu_state.pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
+		cpu_state.cur_tcks += 12;
 	}
 }
 
@@ -2657,7 +2544,7 @@ op_ret_nc(struct z80_set *rec)
 void
 op_ret_c(struct z80_set *rec)
 {
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 
 	if (regs_sets.regs[AF].UByte[F]&F_CARRY) {
@@ -2670,8 +2557,8 @@ op_ret_c(struct z80_set *rec)
 		
 		regs_sets.regs[SP].UWord += 2;
 		regs_sets.regs[PC].UWord = val;
-		pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
-		cur_tcks += 12;
+		cpu_state.pc = (Uint8 *)addr_sp_ptrs[val>>12]+val;
+		cpu_state.cur_tcks += 12;
 	}
 }
 
@@ -2684,8 +2571,8 @@ op_jmp(struct z80_set *rec)
 {
 	Uint16 *dest;
 
-	dest = (Uint16 *)pc;
-	pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)+1))>>12]+(*(((Uint8 *)dest)+1)));
+	dest = (Uint16 *)cpu_state.pc;
+	cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)+1))>>12]+(*(((Uint8 *)dest)+1)));
 	regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)+1);
 }
 
@@ -2698,13 +2585,13 @@ op_jmp_nz(struct z80_set *rec)
 {
 	Uint16 *dest;
 
-	pc+=3;
+	cpu_state.pc+=3;
 	regs_sets.regs[PC].UWord+=3;
 
 	if (!(regs_sets.regs[AF].UByte[F]&F_ZERO)) {
-		cur_tcks += 4;
-		dest = (Uint16 *)pc;
-		pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
+		cpu_state.cur_tcks += 4;
+		dest = (Uint16 *)cpu_state.pc;
+		cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
 		regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)-2);
 	}
 }
@@ -2718,13 +2605,13 @@ op_jmp_z(struct z80_set *rec)
 {
 	Uint16 *dest;
 
-	pc+=3;
+	cpu_state.pc+=3;
 	regs_sets.regs[PC].UWord+=3;
 
 	if (regs_sets.regs[AF].UByte[F]&F_ZERO) {
-		cur_tcks += 4;
-		dest = (Uint16 *)pc;
-		pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
+		cpu_state.cur_tcks += 4;
+		dest = (Uint16 *)cpu_state.pc;
+		cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
 		regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)-2);
 	}
 }
@@ -2738,13 +2625,13 @@ op_jmp_c(struct z80_set *rec)
 {
 	Uint16 *dest;
 
-	pc+=3;
+	cpu_state.pc+=3;
 	regs_sets.regs[PC].UWord+=3;
 
 	if (regs_sets.regs[AF].UByte[F]&F_CARRY) {
-		cur_tcks += 4;
-		dest = (Uint16 *)pc;
-		pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
+		cpu_state.cur_tcks += 4;
+		dest = (Uint16 *)cpu_state.pc;
+		cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
 		regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)-2);
 	}
 }
@@ -2758,13 +2645,13 @@ op_jmp_nc(struct z80_set *rec)
 {
 	Uint16 *dest;
 
-	pc+=3;
+	cpu_state.pc+=3;
 	regs_sets.regs[PC].UWord+=3;
 
 	if (!(regs_sets.regs[AF].UByte[F]&F_CARRY)) {
-		cur_tcks += 4;
-		dest = (Uint16 *)pc;
-		pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
+		cpu_state.cur_tcks += 4;
+		dest = (Uint16 *)cpu_state.pc;
+		cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(*(((Uint8 *)dest)-2))>>12]+(*(((Uint8 *)dest)-2)));
 		regs_sets.regs[PC].UWord = *(Uint16 *)(((Uint8 *)dest)-2);
 	}
 }
@@ -2777,11 +2664,11 @@ void
 op_jmp_rl(struct z80_set *rec)
 {
 	Sint8 *dest;
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 
-	dest = (Sint8 *)pc;
-	pc = (Uint8 *)(addr_sp_ptrs[(regs_sets.regs[PC].UWord+(*(dest-1)))>>12]+(regs_sets.regs[PC].UWord+(*(dest-1))));
+	dest = (Sint8 *)cpu_state.pc;
+	cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(regs_sets.regs[PC].UWord+(*(dest-1)))>>12]+(regs_sets.regs[PC].UWord+(*(dest-1))));
 	regs_sets.regs[PC].SWord += *(dest-1);
 
 }
@@ -2794,13 +2681,13 @@ void
 op_jmp_rl_nz(struct z80_set *rec)
 {
 	Sint8 *dest;
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 
 	if (!(regs_sets.regs[AF].UByte[F]&F_ZERO)) {
-		cur_tcks += 4;
-		dest = (Sint8 *)pc;
-		pc = (Uint8 *)(addr_sp_ptrs[(regs_sets.regs[PC].UWord+(*(dest-1)))>>12]+(regs_sets.regs[PC].UWord+(*(dest-1))));
+		cpu_state.cur_tcks += 4;
+		dest = (Sint8 *)cpu_state.pc;
+		cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(regs_sets.regs[PC].UWord+(*(dest-1)))>>12]+(regs_sets.regs[PC].UWord+(*(dest-1))));
 		regs_sets.regs[PC].SWord += *(dest-1);
 	}
 }
@@ -2813,13 +2700,13 @@ void
 op_jmp_rl_z(struct z80_set *rec)
 {
 	Sint8 *dest;
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 
 	if (regs_sets.regs[AF].UByte[F]&F_ZERO) {
-		cur_tcks += 4;
-		dest = (Sint8 *)pc;
-		pc = (Uint8 *)(addr_sp_ptrs[(regs_sets.regs[PC].UWord+(*(dest-1)))>>12]+(regs_sets.regs[PC].UWord+(*(dest-1))));
+		cpu_state.cur_tcks += 4;
+		dest = (Sint8 *)cpu_state.pc;
+		cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(regs_sets.regs[PC].UWord+(*(dest-1)))>>12]+(regs_sets.regs[PC].UWord+(*(dest-1))));
 		regs_sets.regs[PC].SWord += *(dest-1);
 	}
 }
@@ -2832,13 +2719,13 @@ void
 op_jmp_rl_nc(struct z80_set *rec)
 {
 	Sint8 *dest;
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 
 	if (!(regs_sets.regs[AF].UByte[F]&F_CARRY)) {
-		cur_tcks += 4;
-		dest = (Sint8 *)pc;
-		pc = (Uint8 *)(addr_sp_ptrs[(regs_sets.regs[PC].UWord+(*(dest-1)))>>12]+(regs_sets.regs[PC].UWord+(*(dest-1))));
+		cpu_state.cur_tcks += 4;
+		dest = (Sint8 *)cpu_state.pc;
+		cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(regs_sets.regs[PC].UWord+(*(dest-1)))>>12]+(regs_sets.regs[PC].UWord+(*(dest-1))));
 		regs_sets.regs[PC].SWord += *(dest-1);
 	}
 }
@@ -2851,13 +2738,13 @@ void
 op_jmp_rl_c(struct z80_set *rec)
 {
 	Sint8 *dest;
-	pc+=2;
+	cpu_state.pc+=2;
 	regs_sets.regs[PC].UWord+=2;
 
 	if (regs_sets.regs[AF].UByte[F]&F_CARRY) {
-		cur_tcks += 4;
-		dest = (Sint8 *)pc;
-		pc = (Uint8 *)(addr_sp_ptrs[(regs_sets.regs[PC].UWord+(*(dest-1)))>>12]+(regs_sets.regs[PC].UWord+(*(dest-1))));
+		cpu_state.cur_tcks += 4;
+		dest = (Sint8 *)cpu_state.pc;
+		cpu_state.pc = (Uint8 *)(addr_sp_ptrs[(regs_sets.regs[PC].UWord+(*(dest-1)))>>12]+(regs_sets.regs[PC].UWord+(*(dest-1))));
 		regs_sets.regs[PC].SWord += *(dest-1);
 	}
 }
@@ -2871,8 +2758,8 @@ op_jmp_ind(struct z80_set *rec)
 {
 	Uint16 *dest;
 
-	dest = (Uint16 *)pc;
-	pc = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
+	dest = (Uint16 *)cpu_state.pc;
+	cpu_state.pc = (Uint8 *)(addr_sp_ptrs[regs_sets.regs[HL].UWord>>12]+regs_sets.regs[HL].UWord);
 	regs_sets.regs[PC].UWord = regs_sets.regs[HL].UWord;
 }
 
@@ -2883,9 +2770,9 @@ op_jmp_ind(struct z80_set *rec)
 void
 op_dis_ints(struct z80_set *rec)
 {
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
-	ime_flag=0;
+	cpu_state.ime_flag=0;
 }
 
 /* 
@@ -2895,10 +2782,10 @@ op_dis_ints(struct z80_set *rec)
 void
 op_ena_ints(struct z80_set *rec)
 {
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
-	ime_flag=1;
-	just_enabled=1;
+	cpu_state.ime_flag=1;
+	cpu_state.just_enabled=1;
 }
 
 /* 
@@ -2907,7 +2794,7 @@ op_ena_ints(struct z80_set *rec)
 void
 op_clr_car_flg(struct z80_set *rec)
 {
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 
 	if (regs_sets.regs[AF].UByte[F] & F_CARRY)
@@ -2925,7 +2812,7 @@ op_clr_car_flg(struct z80_set *rec)
 void
 op_set_car_flg(struct z80_set *rec)
 {
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 	regs_sets.regs[AF].UByte[F] |= F_CARRY;
 	regs_sets.regs[AF].UByte[F] &= ~(F_SUBTRACT|F_HCARRY);
@@ -2937,7 +2824,7 @@ op_set_car_flg(struct z80_set *rec)
 void
 op_cpl(struct z80_set *rec)
 {
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 	regs_sets.regs[AF].UByte[F] |= (F_SUBTRACT|F_HCARRY);
 	regs_sets.regs[AF].UByte[A] = ~regs_sets.regs[AF].UByte[A];
@@ -2950,7 +2837,7 @@ op_cpl(struct z80_set *rec)
 void
 op_halt(struct z80_set *rec)
 {
-	cpu_halt=1;
+	cpu_state.cpu_halt=1;
 }
 
 /*
@@ -2970,10 +2857,10 @@ op_inval(struct z80_set *rec)
 void
 op_escape(struct z80_set *rec)
 {
-	pc++;
+	cpu_state.pc++;
 	regs_sets.regs[PC].UWord++;
 
-	inst_is_cb = 1;
+	cpu_state.inst_is_cb = 1;
 }
 
 
@@ -5546,20 +5433,20 @@ execute_precise(struct z80_set *rec)
 	Sint8 ticks;
 	Uint8 div_tmp;
 
-	write_is_delayed = 0;
+	cpu_state.write_is_delayed = 0;
 	ticks = (rec->format[7]>>2)-1;
-	div_tmp = div_ctrl;
+	div_tmp = cpu_state.div_ctrl;
 	
 	while (1)
 	{
-		if (write_is_delayed&0x3)
+		if (cpu_state.write_is_delayed&0x3)
 		{
-			if (write_is_delayed&0x1)
+			if (cpu_state.write_is_delayed&0x1)
 			{
-				if (del_addr != NULLZ) {
-					mem_wr(del_io, del_wr, del_addr);
+				if (cpu_state.del_addr != NULLZ) {
+					mem_wr(cpu_state.del_io, cpu_state.del_wr, cpu_state.del_addr);
 				}
-				write_is_delayed = 2;
+				cpu_state.write_is_delayed = 2;
 				goto last_run;
 			}
 			else
@@ -5572,23 +5459,23 @@ execute_precise(struct z80_set *rec)
 			{
 				if (rec->format[5]&RD_WR)
 				{
-					write_is_delayed |= rec->format[5];
+					cpu_state.write_is_delayed |= rec->format[5];
 					rec->func(rec);
 				}
 			}
 			else if (ticks<0)
 			{
-				write_is_delayed |= rec->format[5];
+				cpu_state.write_is_delayed |= rec->format[5];
 				rec->func(rec);
 			}
 last_run:
-			if ((div_ctrl&0xf) > ((div_ctrl+4)&0xf))
+			if ((cpu_state.div_ctrl&0xf) > ((cpu_state.div_ctrl+4)&0xf))
 			{
-				if (tac_on&0x1)
+				if (cpu_state.tac_on&0x1)
 				{
-					if (--tac_counter == 0)
+					if (--cpu_state.tac_counter == 0)
 					{
-						tac_counter = tac_reload;
+						cpu_state.tac_counter = cpu_state.tac_reload;
 						if ((++addr_sp[TIMA_REG]) == 0)
 						{
 							addr_sp[IR_REG] |= 4;
@@ -5597,8 +5484,8 @@ last_run:
 					}
 				}
 			}
-			div_ctrl += 4;
-			if (div_ctrl==0)
+			cpu_state.div_ctrl += 4;
+			if (cpu_state.div_ctrl==0)
 				addr_sp[DIV_REG]++;
 		}
 	}
@@ -5612,17 +5499,17 @@ timer_divider_update()
 	Sint8 ticks;
 	Uint8 div_tmp;
 
-	ticks = (Sint8)cur_tcks;
-	div_tmp = div_ctrl;
-	if (tac_on&1)
+	ticks = (Sint8)cpu_state.cur_tcks;
+	div_tmp = cpu_state.div_ctrl;
+	if (cpu_state.tac_on&1)
 	{
 		while (ticks > 0)
 		{
-			if ((div_ctrl&0xf) > ((div_ctrl+4)&0xf))
+			if ((cpu_state.div_ctrl&0xf) > ((cpu_state.div_ctrl+4)&0xf))
 			{
-				if (--tac_counter == 0)
+				if (--cpu_state.tac_counter == 0)
 				{
-					tac_counter = tac_reload;
+					cpu_state.tac_counter = cpu_state.tac_reload;
 					if ((++addr_sp[TIMA_REG]) == 0)
 					{
 						addr_sp[IR_REG] |= 4;
@@ -5630,16 +5517,16 @@ timer_divider_update()
 					}
 				}
 			}
-			div_ctrl += 4;
+			cpu_state.div_ctrl += 4;
 			ticks -= 4;
 		}
-		if (div_ctrl < div_tmp)
+		if (cpu_state.div_ctrl < div_tmp)
 			addr_sp[DIV_REG]++;
 	}
 
 	else {
-		div_ctrl += cur_tcks;
-		if (div_ctrl < div_tmp)
+		cpu_state.div_ctrl += cpu_state.cur_tcks;
+		if (cpu_state.div_ctrl < div_tmp)
 			addr_sp[DIV_REG]++;
 	}
 }
@@ -5652,24 +5539,24 @@ change_game()
 	gb_oam_clks[0] = gb_oam_clks[1];
 	gb_vbln_clks[0] = gb_vbln_clks[1];
 
-	ime_flag = 1;
-	hbln_dma_src = 0;
-	hbln_dma_dst = 0;
-	hbln_dma = 0;
-	hdma_on = 0;
-	cpu_cur_mode = 0;
+	cpu_state.ime_flag = 1;
+	cpu_state.hbln_dma_src = 0;
+	cpu_state.hbln_dma_dst = 0;
+	cpu_state.hbln_dma = 0;
+	cpu_state.hdma_on = 0;
+	cpu_state.cpu_cur_mode = 0;
 	lcd_vbln_hbln_ctrl = 0;
-	div_ctrl = 0;
-	cpu_halt = 0;
-	tac_on = 0;
-	tac_counter = 0;
-	tac_reload = 0;
+	cpu_state.div_ctrl = 0;
+	cpu_state.cpu_halt = 0;
+	cpu_state.tac_on = 0;
+	cpu_state.tac_counter = 0;
+	cpu_state.tac_reload = 0;
 	skip_next_frame = 0;
 	nb_spr = 0;
 	spr_cur_extr = 0;
-	just_enabled = 0;
-	write_is_delayed = 0;
-	inst_is_cb = 0;
+	cpu_state.just_enabled = 0;
+	cpu_state.write_is_delayed = 0;
+	cpu_state.inst_is_cb = 0;
 
 	regs_sets.regs[AF].UWord = 0;
 	regs_sets.regs[BC].UWord = 0;
@@ -5685,16 +5572,16 @@ void
 lcd_refrsh()
 {
 	static Uint8 hdma_tmp;
-	cur_tcks >>= cpu_cur_mode;
+	cpu_state.cur_tcks >>= cpu_state.cpu_cur_mode;
 
 	switch (addr_sp[LCDS_REG]&0x3) {
 		case 0:
-			gb_hblank_clks[0] -= cur_tcks;
+			gb_hblank_clks[0] -= cpu_state.cur_tcks;
 			if (gb_hblank_clks[0] <= 0) {
-				if (gboy_mode==1 && hdma_on==1) {
+				if (gboy_mode==1 && cpu_state.hdma_on==1) {
 					int i;
-					char *dma_src = (char *)hbln_dma_src;
-					char *dma_dst = (char *)hbln_dma_dst;
+					char *dma_src = (char *)cpu_state.hbln_dma_src;
+					char *dma_dst = (char *)cpu_state.hbln_dma_dst;
 					Uint16 *ptr_tmp;
 					hdma_tmp = (addr_sp[VRAM_DMA]&0x7f)-1;
 					addr_sp[VRAM_DMA] &= 0x80;
@@ -5705,10 +5592,10 @@ lcd_refrsh()
 					*ptr_tmp = (addr_sp[VRAM_DMA_SRC+1] | (addr_sp[VRAM_DMA_SRC]<<8))+16;
 					ptr_tmp = (Uint16 *)(addr_sp+VRAM_DMA_DST);
 					*ptr_tmp = (addr_sp[VRAM_DMA_DST+1] | (addr_sp[VRAM_DMA_DST]<<8))+16;
-					hbln_dma_dst += 16;
-					hbln_dma_src += 16;
-					if (--hbln_dma < 0)
-						hdma_on=0, addr_sp[VRAM_DMA]=0xff;
+					cpu_state.hbln_dma_dst += 16;
+					cpu_state.hbln_dma_src += 16;
+					if (--cpu_state.hbln_dma < 0)
+						cpu_state.hdma_on=0, addr_sp[VRAM_DMA]=0xff;
 				}
 				addr_sp[LY_REG]++;
 				addr_sp[LCDS_REG] &= ~LY_LYC_FLAG;
@@ -5736,7 +5623,7 @@ lcd_refrsh()
 			}
 				break;
 		case 1:
-				gb_vbln_clks[0] -= cur_tcks;
+				gb_vbln_clks[0] -= cpu_state.cur_tcks;
 				if (gb_vbln_clks[0] <= 0) {
 					gb_oam_clks[0] += gb_vbln_clks[0];
 					gb_vbln_clks[0] = gb_vbln_clks[1];
@@ -5769,7 +5656,7 @@ lcd_refrsh()
 				}
 				break;
 		case 2:
-				gb_oam_clks[0] -= cur_tcks;
+				gb_oam_clks[0] -= cpu_state.cur_tcks;
 				if (gb_oam_clks[0] <= 0) {
 					gb_vram_clks[0] += (gb_oam_clks[0]) + spr_extr_cycles[nb_spr>>3] + (addr_sp[SCR_X]&0x4);
 					gb_oam_clks[0] = gb_oam_clks[1];
@@ -5778,7 +5665,7 @@ lcd_refrsh()
 				}
 				break;
 		case 3:
-				gb_vram_clks[0] -= cur_tcks;
+				gb_vram_clks[0] -= cpu_state.cur_tcks;
 				if (gb_vram_clks[0] <= 0) {
 					gb_hblank_clks[0] += gb_vram_clks[0];
 					gb_hblank_clks[0] -= spr_cur_extr;
@@ -5800,21 +5687,21 @@ proc_ints()
 	Uint8 *ptr_stack;
 	Uint16 *ptr_stack_wd;
 
-	if (*pc == 0x76 || ime_flag == 1) {
+	if (*cpu_state.pc == 0x76 || cpu_state.ime_flag == 1) {
 		while ((!(i&addr_sp[IR_REG]) || !(i&addr_sp[IE_REG])) && (i <= 0x10))
 			i <<= 1, indx++;
 		/* We have interrupt */
 		if (i <= 0x10) {
-			if (*pc == 0x76)
-				pc++, regs_sets.regs[PC].UWord++;
-			if (ime_flag == 1) {
-				ime_flag=0;
+			if (*cpu_state.pc == 0x76)
+				cpu_state.pc++, regs_sets.regs[PC].UWord++;
+			if (cpu_state.ime_flag == 1) {
+				cpu_state.ime_flag=0;
 				addr_sp[IR_REG] &= ~i;
 				regs_sets.regs[SP].UWord -= 2;
 				ptr_stack = (Uint8 *)(regs_sets.regs[SP].UWord+(addr_sp_ptrs[regs_sets.regs[SP].UWord>>12]));
 				ptr_stack_wd = (Uint16 *)ptr_stack;
 				*ptr_stack_wd = (regs_sets.regs[PC].UWord); // XXX
-				pc = (Uint8 *)(ints_offs[indx] + (addr_sp_ptrs[ints_offs[indx]>>12]));
+				cpu_state.pc = (Uint8 *)(ints_offs[indx] + (addr_sp_ptrs[ints_offs[indx]>>12]));
 				regs_sets.regs[PC].UWord = ints_offs[indx];
 			}
 		}
@@ -5828,28 +5715,28 @@ exec_next(int offset)
 {
 	static struct z80_set *rec;
 
-	pc = addr_sp+offset;
+	cpu_state.pc = addr_sp+offset;
 
 	while (!chg_gam) {
-		rec = z80_ldex + *pc;
-		cur_tcks = rec->format[7];
+		rec = z80_ldex + *cpu_state.pc;
+		cpu_state.cur_tcks = rec->format[7];
 		if (gbddb==1)
-			gddb_main(0, pc, rec);
+			gddb_main(0, cpu_state.pc, (Uint8 *)rec);
 		if (rec->format[5] & DELAY) {
 			execute_precise(rec);
 		}
 		else {
 			do {
-				if (inst_is_cb)
-					rec = z80_ldex+256+*pc, cur_tcks = rec->format[7];
-				inst_is_cb = 0;
+				if (cpu_state.inst_is_cb)
+					rec = z80_ldex+256+*cpu_state.pc, cpu_state.cur_tcks = rec->format[7];
+				cpu_state.inst_is_cb = 0;
 				if (rec->format[5] & DELAY)
 					execute_precise(rec);
 				else
 					rec->func(rec), timer_divider_update();
-			} while (inst_is_cb == 1);
+			} while (cpu_state.inst_is_cb == 1);
 		}
-		pc = (Uint8 *)(regs_sets.regs[PC].UWord+addr_sp_ptrs[(regs_sets.regs[PC].UWord)>>12]);
+		cpu_state.pc = (Uint8 *)(regs_sets.regs[PC].UWord+addr_sp_ptrs[(regs_sets.regs[PC].UWord)>>12]);
 		proc_ints();
 		if (addr_sp[LCDC_REG]&0x80)
 			lcd_refrsh();
@@ -5863,5 +5750,6 @@ exec_next(int offset)
 void
 rom_exec(int offset)
 {
+	memset(&cpu_state, 0, sizeof(struct cpu_state));
 	exec_next(offset);
 }

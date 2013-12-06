@@ -17,10 +17,7 @@
  */
 
 #include "gboy.h"
-Uint32 key_bitmap;
-extern SDLKey key_binds_SDL[4]; // Array of SDL keybindings. In order: A, B, Start, Select.
-extern void vid_scale(Uint32);
-extern int vid_is_fullscreen();
+#include "gboy_joy.h"
 
 long
 joy_event(SDL_KeyboardEvent *key, Uint32 type)
@@ -97,6 +94,8 @@ joy_event(SDL_KeyboardEvent *key, Uint32 type)
 				case SDLK_PERIOD:
 					frame_speedup();
 					break;
+				default:
+					;
 			}
 		}
 	}
@@ -126,6 +125,8 @@ joy_event(SDL_KeyboardEvent *key, Uint32 type)
 				case SDLK_PERIOD:
 					frame_speeddown();
 					break;
+				default:
+					;
 			}
 		}
 	}

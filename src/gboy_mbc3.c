@@ -28,18 +28,13 @@
  */
 
 #include "gboy.h"
-extern FILE *open_save_try(char *);
-extern FILE *create_save(char *);
-extern char *file_path;
-extern long addr_sp_ptrs[0x10]; // pointer to address spaces
-extern long *addr_sp_bases[0x10]; // pointers to bases
-//extern long test_tmp_val;
+#include "gboy_mbc3.h"
 
 /*
  * From VisualBoy.
  * XXX GPL; REWRITE.
  */
-static
+static void
 mbc3_latch_rtc()
 {
   time_t now = time(NULL);
@@ -87,7 +82,7 @@ mbc3_latch_rtc()
  * From VisualBoy.
  * XXX GPL; REWRITE.
  */
-static
+static void
 mbc3_1st_rtc()
 {
 	gb_mbc.mbc_rtc_last = time(NULL);

@@ -17,11 +17,7 @@
  */
 
 #include "gboy.h"
-#define MAX_CHAR 512
-
-static struct cmd_stack cmd_head; // head of the list
-static struct cmd_stack *cmd_cur = NULL; // pointer to current command
-struct cmd_stack *cmd_tail = &cmd_head; // pointer to last command
+#include "gboy_interp.h"
 
 int
 getch()

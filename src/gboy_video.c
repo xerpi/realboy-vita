@@ -17,31 +17,7 @@
  */
 
 #include "gboy.h"
-
-/* Locally-global variables */
-static SDL_Surface *back1;
-static SDL_Surface *temp=NULL;
-
-/* Global/Exported variables */
-Uint32 gb_height;
-Uint32 gb_width;
-Uint32 scale=1;
-Uint32 anti_alias=0;
-SDL_Surface *zoomS;
-SDL_Surface *x1;
-SDL_Surface *x2;
-SDL_Surface *x3;
-SDL_Surface *x4;
-SDL_Surface *sgb_1;
-SDL_Surface *sgb_2;
-SDL_Surface *sgb_3;
-SDL_Surface *sgb_4;
-Uint32 fullscreen;
-
-/* Imported/External variables */
-extern SDL_Surface *_zoomSurfaceRGBA(SDL_Surface *, SDL_Surface *, int, int, int);
-extern SDL_Surface *back;
-extern long sgb_mask;
+#include "gboy_video.h"
 
 void
 vid_set_fullscreen()

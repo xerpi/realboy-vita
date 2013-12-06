@@ -15,38 +15,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
  */
+#define A_KEY 0
+#define B_KEY 1
+#define START_KEY 2
+#define SELECT_KEY 3
+#define ALL_KEYS 4
 
-#include "gboy.h"
-#include "gboy_mem.h"
+extern int getch();
 
-void
-mem_wr(Uint16 gb_addr, Uint8 val, Uint8 *host_addr)
-{
-	if (gb_addr >= 0xff00 && gb_addr < 0xff80)
-		io_ctrl_wr(gb_addr&0xff, val);
-
-	else if (gb_addr < 0x7fff)
-		(gb_mbc.mbc_funcs[(gb_addr>>12)])(val);
-					
-	else
-		*host_addr = val;
-}
-
-Uint8
-mem_rd(Uint16 gb_addr, Uint8 *host_addr)
-{
-	if (gb_addr < 0x8000)
-		return *host_addr;
-
-	if (gb_addr > 0xe000 && gb_addr < 0xfe00)
-		gb_addr &= ~0x2000;
-
-//if (gb_addr < 0xc000) {
-//	
-//}
-
-	if (gb_addr == 0xff00 && gboy_mode==SGB)
-		return sgb_read();
-
-	return *host_addr;
-}
+char *key_binds_errs[2] = { "Conflicting Key Binding", "Invalid Key Binding" };
+char *key_binds_strs[4] = { "A", "B", "START", "SELECT" };
+char key_binds_ascii[4] = { 'd', 's', '\n', 'a' }; // Array of ASCII keybindings. In order: A, B, Start, Select.
+SDLKey key_binds_SDL[4] = { SDLK_d, SDLK_s, SDLK_RETURN, SDLK_a }; // Array of SDL keybindings. In order: A, B, Start, Select.

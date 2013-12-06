@@ -19,14 +19,18 @@
 #include "gboy.h"
 #define STR_OFF 8 // string offset
 
-char gddb_buf[512];
+extern int addr_is_hex(char *, int);
+extern void str_hex_to_num(char *, int *, int);
+extern void memdump32(int *, char *, char, int,	int);
+extern int getch();
 extern int gddb_tmp;
 extern long gddb_contil;
 extern long gddb_loop;
+extern int gbddb;
 #ifdef USE_X86_64_ASM
-extern long regs_sets;
 extern char z80_cb;
 extern char z80_ldex;
+extern long regs_sets;
 #else
 struct z80_set {
 	Uint8 format[8];
@@ -43,17 +47,15 @@ struct regs_sets {
 	} regs[10];
 };
 extern struct regs_sets regs_sets;
-extern struct z80_set z80_ldex[512];
+extern struct z80_set z80_ldex;
 #endif
-//extern char *addr_sp;
 extern long *addr_sp_bases[];
 extern long addr_sp_ptrs[16];
-extern char *gboy_pc;
-extern char *op_rec;
-extern void memdump32(int *mem_arg, char *buf_arg, char num_words, int num_bytes, 
-											int num_base);
+extern Uint8 *gboy_pc;
+extern Uint8 *op_rec;
 
 char *gddb_regs[] = { "AF = ", "BC = ", "DE = ", "HL = ", "SP = ", "PC = ", NULL };
+char gddb_buf[512];
 
 struct gddb_registers {
 	char *gddb_str;
@@ -125,29 +127,21 @@ gddb_cont(int num_args, char **ptr_ptrs)
 	printf("\n\nContinuing execution...\nPress 'g' to drop to debugger.\n\n");
 }
 
+#ifdef USE_X86_64_ASM
 void
 gddb_disasm(int num_ops, int rep)
 {
-	unsigned char *gboy_pc_local = gboy_pc;
-	unsigned char *op_rec_local = op_rec;
+	Uint8 *gboy_pc_local = (Uint8 *)gboy_pc;
+	Uint8 *op_rec_local = (Uint8 *)op_rec;
 	int i;
 
-#ifdef USE_X86_64_ASM
 	long pc_temp = *((&regs_sets)+5);
-#else
-	long pc_temp = regs_sets.regs[PC].UWord;
-#endif
-
 
 	while (num_ops--) {
-		if ((unsigned char)(*gboy_pc_local) == 0xcb) {
+		if (*gboy_pc_local == 0xcb) {
 			//printf("Escape to: \n");
 			gboy_pc_local++;
-			#ifdef USE_X86_64_ASM
-				op_rec_local = (char *)(&z80_cb)+((int)((unsigned char)*gboy_pc_local)<<5);
-			#else
-				op_rec_local = (char *)((z80_ldex+256)+(*gboy_pc_local));
-			#endif
+			op_rec_local = (Uint8 *)(&z80_cb + (((int)*gboy_pc_local)<<5));
 			pc_temp++;
 			memdump32((int *)&pc_temp, gddb_buf, 1, 2, 16);
 			printf("%s\t", gddb_buf);
@@ -170,7 +164,7 @@ gddb_disasm(int num_ops, int rep)
 				memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 2, 16);
 				printf("*%s", gddb_buf);
 			}
-			else if (!strncmp(op_rec_local+STR_OFF,"ld",255)||!strncmp(op_rec_local+STR_OFF, "ldi", 255)||!strncmp(op_rec_local+STR_OFF, "ldd", 255)) 
+			else if (!strncmp((char const *)(op_rec_local+STR_OFF),"ld",255)||!strncmp((char const *)(op_rec_local+STR_OFF), "ldi", 255)||!strncmp((char const *)(op_rec_local+STR_OFF), "ldd", 255)) 
 			{
 				printf("%s", op_rec_local+STR_OFF);
 				switch (*((int *)(op_rec_local+24))) {
@@ -242,11 +236,7 @@ gddb_disasm(int num_ops, int rep)
 								printf("*%s", gddb_buf);
 						}
 						else if (*(op_rec_local+1) == 0x18) {
-							#ifdef USE_X86_64_ASM
 								memdump32((int *)((char *)(&regs_sets)+C), gddb_buf, 1, 1, 16);
-							#else
-								memdump32((int *)((char *)(&regs_sets.regs[BC].UByte[C])),gddb_buf,1,1,16);
-							#endif
 								printf(" (0xff%s), ", gddb_buf+2);
 						}
 						else if (*(op_rec_local+1) == 0x1) {
@@ -301,26 +291,26 @@ gddb_disasm(int num_ops, int rep)
 							 *op_rec_local == 0x30 || *op_rec_local == 0x38) 
 			{
 				printf("%s ", op_rec_local+STR_OFF);
-				printf("0x%hx", (int)((pc_temp+2)+((signed char)gboy_pc_local[1])));
+				printf("0x%hx", (unsigned short)((pc_temp+2)+((signed char)gboy_pc_local[1])));
 			}
-			else if ((unsigned char)*op_rec_local == 0xc3 || (unsigned char)*op_rec_local == 0xca || 
-					 (unsigned char)*op_rec_local == 0xc2 || (unsigned char)*op_rec_local == 0xd2 || 
-					 (unsigned char)*op_rec_local == 0xda || (unsigned char)*op_rec_local == 0xdc || 
-					 (unsigned char)*op_rec_local == 0xcd || (unsigned char)*op_rec_local == 0xcc || 
-					 (unsigned char)*op_rec_local == 0xc4 || (unsigned char)*op_rec_local == 0xd4)
+			else if (*op_rec_local == 0xc3 || *op_rec_local == 0xca || 
+					 *op_rec_local == 0xc2 || *op_rec_local == 0xd2 || 
+					 *op_rec_local == 0xda || *op_rec_local == 0xdc || 
+					 *op_rec_local == 0xcd || *op_rec_local == 0xcc || 
+					 *op_rec_local == 0xc4 || *op_rec_local == 0xd4)
 			{
 				printf("%s ", op_rec_local+STR_OFF);
 				memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 2, 16);
 				printf("%s", gddb_buf);
 			}
-			else if ((unsigned char)*op_rec_local == 0xe6 || (unsigned char)*op_rec_local == 0xee || 
-					 (unsigned char)*op_rec_local == 0xf6 || (unsigned char)*op_rec_local == 0xfe)
+			else if (*op_rec_local == 0xe6 || *op_rec_local == 0xee || 
+					 *op_rec_local == 0xf6 || *op_rec_local == 0xfe)
 			{
 				printf("%s ", op_rec_local+STR_OFF);
 				memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 1, 16);
 				printf("%s", gddb_buf);
 			}
-			else if ((unsigned char)*op_rec_local == 0xe8)
+			else if (*op_rec_local == 0xe8)
 			{
 				printf("%s ", op_rec_local+STR_OFF);
 				memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 2, 16);
@@ -337,7 +327,224 @@ gddb_disasm(int num_ops, int rep)
 		printf(")");
 		gboy_pc_local += *(op_rec_local+6);
 		pc_temp += *(op_rec_local+6);
-		op_rec_local = (char *)(&z80_ldex)+((int)((unsigned char)*gboy_pc_local)<<5);
+		op_rec_local = (Uint8 *)(&z80_ldex + (((int)*gboy_pc_local)<<5));
+
+		printf("\n");
+
+		if (rep == 1)
+		if (num_ops == 0) {
+			puts("Any key to continue; 'q' to stop...");
+			rep=getch();//("%c", (char *)&rep);
+			if ((char)rep != 'q')
+				rep = 1, num_ops = 10;
+		}
+	}
+}
+#else
+void
+gddb_disasm(int num_ops, int rep)
+{
+	Uint8 *gboy_pc_local = (Uint8 *)gboy_pc;
+	struct z80_set *op_rec_local = (struct z80_set *)op_rec;
+	int i;
+
+	long pc_temp = regs_sets.regs[PC].UWord;
+
+	while (num_ops--) {
+		if (*gboy_pc_local == 0xcb) {
+			//printf("Escape to: \n");
+			gboy_pc_local++;
+			op_rec_local = (struct z80_set *)(&z80_ldex+256 + ((*gboy_pc_local)));
+			pc_temp++;
+			memdump32((int *)&pc_temp, gddb_buf, 1, 2, 16);
+			printf("%s\t", gddb_buf);
+			printf("%s", op_rec_local->name);
+		}
+		else {
+			memdump32((int *)&pc_temp, gddb_buf, 1, 2, 16);
+			printf("%s\t", gddb_buf);
+			if (op_rec_local->format[0] == 0xea)
+			{
+				printf("%s", op_rec_local->name);
+				memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 2, 16);
+				printf(" (%s), ", gddb_buf);
+				printf("A");
+			}
+			else if (op_rec_local->format[0] == 0x08)
+			{
+				printf("%s", op_rec_local->name);
+				printf(" SP, ");
+				memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 2, 16);
+				printf("*%s", gddb_buf);
+			}
+			else if (!strncmp((char const *)(op_rec_local->name),"ld",255)||!strncmp((char const *)(op_rec_local->name), "ldi", 255)||!strncmp((char const *)(op_rec_local->name), "ldd", 255)) 
+			{
+				printf("%s", op_rec_local->name);
+				switch ((int)op_rec_local->length) {
+					case WORD_W:
+						if (op_rec_local->format[1] == REG) {
+							if (op_rec_local->format[2] == AF)
+								printf(" AF, ");
+							else if (op_rec_local->format[2] == BC)
+								printf(" BC, ");
+							else if (op_rec_local->format[2] == DE)
+								printf(" DE, ");
+							else if (op_rec_local->format[2] == HL)
+								printf(" HL, ");
+							else if (op_rec_local->format[2] == SP)
+								printf(" SP, ");
+							else
+								printf(" PC, ");
+						}
+						else if (op_rec_local->format[1] == IMM_IND) {
+								memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 2, 16);
+								printf("(%s)", gddb_buf);
+						}
+						if (op_rec_local->format[3] == REG) {
+							if (op_rec_local->format[4] == AF)
+								printf("AF");
+							else if (op_rec_local->format[4] == BC)
+								printf("BC");
+							else if (op_rec_local->format[4] == DE)
+								printf("DE");
+							else if (op_rec_local->format[4] == HL)
+								printf("HL");
+							else if (op_rec_local->format[4] == SP)
+								printf("SP");
+							else
+								printf("PC");
+						}
+						else if (op_rec_local->format[3] == IMM_IND) {
+								memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 2, 16);
+								printf("(%s)", gddb_buf);
+								break;
+						}
+						else if (op_rec_local->format[3] == IMM) {
+								memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 2, 16);
+								printf("%s", gddb_buf);
+								break;
+						}
+					break;
+					case BYTE_B:
+						if (op_rec_local->format[1] == REG) {
+							if (op_rec_local->format[2] == A)
+								printf(" A, ");
+							else if (op_rec_local->format[2] == B)
+								printf(" B, ");
+							else if (op_rec_local->format[2] == D)
+								printf(" D, ");
+							else if (op_rec_local->format[2] == H)
+								printf(" H, ");
+							else if (op_rec_local->format[2] == C)
+								printf(" C, ");
+							else if (op_rec_local->format[2] == E)
+								printf(" E, ");
+							else if (op_rec_local->format[2] == L)
+								printf(" L, ");
+							else
+								printf(" F, ");
+						}
+						else if (op_rec_local->format[1] == IMM_IND) {
+								memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 1, 16);
+								printf("*%s", gddb_buf);
+						}
+						else if (op_rec_local->format[1] == 0x18) {
+							#ifdef USE_X86_64_ASM
+								memdump32((int *)((char *)(&regs_sets)+C), gddb_buf, 1, 1, 16);
+							#else
+								memdump32((int *)((char *)(&regs_sets.regs[BC].UByte[C])),gddb_buf,1,1,16);
+							#endif
+								printf(" (0xff%s), ", gddb_buf+2);
+						}
+						else if (op_rec_local->format[1] == 0x1) {
+								memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 1, 16);
+								printf(" (0xff%s), ", gddb_buf+2);
+						}
+						if (op_rec_local->format[3] == REG) {
+							if (op_rec_local->format[4] == A)
+								printf("A");
+							else if (op_rec_local->format[4] == B)
+								printf("B");
+							else if (op_rec_local->format[4] == D)
+								printf("D");
+							else if (op_rec_local->format[4] == H)
+								printf("H");
+							else if (op_rec_local->format[4] == C)
+								printf("C");
+							else if (op_rec_local->format[4] == E)
+								printf("E");
+							else if (op_rec_local->format[4] == L)
+								printf("L");
+							else
+								printf("F");
+						}
+						else if (op_rec_local->format[3] == IMM_IND) {
+								memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 1, 16);
+								printf("*%s", gddb_buf);
+								break;
+						}
+						else if (op_rec_local->format[3] == IMM) {
+								memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 1, 16);
+								printf("%s", gddb_buf);
+								break;
+						}
+						else if (op_rec_local->format[3] == 0x18) {
+							#ifdef USE_X86_64_ASM
+								memdump32((int *)((char *)(&regs_sets)+C), gddb_buf, 1, 1, 16);
+							#else
+								memdump32((int *)((char *)(&regs_sets.regs[DE].UByte[E])),gddb_buf,1,1,16);
+							#endif
+								printf("(0xff%s)", gddb_buf+2);
+								break;
+						}
+						else if (op_rec_local->format[3] == 0x1) {
+								memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 1, 16);
+								printf("(0xff%s)", gddb_buf+2);
+								break;
+						}
+					}
+				}
+			else if (op_rec_local->format[0] == 0x18 || op_rec_local->format[0] == 0x20 || op_rec_local->format[0] == 0x28 || 
+							 op_rec_local->format[0] == 0x30 || op_rec_local->format[0] == 0x38) 
+			{
+				printf("%s ", op_rec_local->name);
+				printf("0x%hx", (unsigned short)((pc_temp+2)+((signed char)gboy_pc_local[1])));
+			}
+			else if (op_rec_local->format[0] == 0xc3 || op_rec_local->format[0] == 0xca || 
+					 op_rec_local->format[0] == 0xc2 || op_rec_local->format[0] == 0xd2 || 
+					 op_rec_local->format[0] == 0xda || op_rec_local->format[0] == 0xdc || 
+					 op_rec_local->format[0] == 0xcd || op_rec_local->format[0] == 0xcc || 
+					 op_rec_local->format[0] == 0xc4 || op_rec_local->format[0] == 0xd4)
+			{
+				printf("%s ", op_rec_local->name);
+				memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 2, 16);
+				printf("%s", gddb_buf);
+			}
+			else if (op_rec_local->format[0] == 0xe6 || op_rec_local->format[0] == 0xee || 
+					 op_rec_local->format[0] == 0xf6 || op_rec_local->format[0] == 0xfe)
+			{
+				printf("%s ", op_rec_local->name);
+				memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 1, 16);
+				printf("%s", gddb_buf);
+			}
+			else if (op_rec_local->format[0] == 0xe8)
+			{
+				printf("%s ", op_rec_local->name);
+				memdump32((int *)(gboy_pc_local+1), gddb_buf, 1, 2, 16);
+				printf("%s", gddb_buf);
+			}
+			else
+				printf("%s", op_rec_local->name);
+		}
+		printf("\t\t( ");
+		for (i=0; i<op_rec_local->format[6]; i++) {
+			memdump32((int *)(gboy_pc_local+i), gddb_buf, 1, 1, 16);
+			printf("%s ", gddb_buf);
+		}
+		printf(")");
+		gboy_pc_local += op_rec_local->format[6];
+		pc_temp += op_rec_local->format[6];
+		op_rec_local = (struct z80_set *)(&z80_ldex + ((*gboy_pc_local)));
 
 		printf("\n");
 
@@ -351,6 +558,8 @@ gddb_disasm(int num_ops, int rep)
 	}
 }
 
+#endif
+
 void
 gddb_break(int num_args, char **ptr_ptrs)
 {
@@ -359,8 +568,7 @@ gddb_break(int num_args, char **ptr_ptrs)
 
 	if (num_args==2) {
 		if (addr_is_hex(ptr_ptrs[1], strnlen(ptr_ptrs[1], 255)))
-			str_hex_to_num(ptr_ptrs[1]+2, &ptr_num, 
-						  (str_len = strnlen(ptr_ptrs[1]+2, 255)) > 4 ? 0 : str_len);
+			str_hex_to_num(ptr_ptrs[1]+2, (int *)&ptr_num, (str_len = strnlen(ptr_ptrs[1]+2, 255)) > 4 ? 0 : str_len);
 		else
 			ptr_num = atoi(ptr_ptrs[1]); 
 		if (ptr_num==0)
@@ -387,15 +595,14 @@ gddb_print(int num_args, char **ptr_ptrs)
 
 	if (num_args==2) {
 		if (addr_is_hex(ptr_ptrs[1], strnlen(ptr_ptrs[1], 255)))
-			str_hex_to_num(ptr_ptrs[1]+2, &ptr_num, 
-						  (str_len = strnlen(ptr_ptrs[1]+2, 255)) > 4 ? 0 : str_len);
+			str_hex_to_num(ptr_ptrs[1]+2, (int *)&ptr_num, (str_len = strnlen(ptr_ptrs[1]+2, 255)) > 4 ? 0 : str_len);
 		else
 			ptr_num = atoi(ptr_ptrs[1]); 
 		if (ptr_num==0)
 			printf("Bad address \"%s\"\n", ptr_ptrs[1]);
 		else {
 			printf("(0x%x) = ", (unsigned int)ptr_num);
-			ptr_num = (long)(addr_sp_ptrs[(ptr_num>>12)&0x3c]) + ptr_num;
+			ptr_num = addr_sp_ptrs[(ptr_num>>12)&0x3c] + ptr_num;
 			memdump32((int *)(ptr_num), gddb_buf, 1, 1, 16);
 			printf("%s\n", gddb_buf);
 		}
@@ -409,7 +616,7 @@ void
 gddb_show(int num_args, char **ptr_ptrs)
 {
 	int i=0;
-	char *ptr_addr;
+	Uint8 *ptr_addr;
 
 	if (num_args != 2)
 		printf("Usage: show [regs, ioregs, lcdregs, sndregs]\n");

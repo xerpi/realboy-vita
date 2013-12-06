@@ -34,46 +34,7 @@
  */
 
 #include "gboy.h"
-#define SGB_PACK_SIZE 16
-#define SGB_MAX_PACK 7
-#define IDLE 0
-#define RESET 1
-#define SENDING 2
-#define SGB_COLOR(c) ((((c)&0x7C00)>>10)|(((c)&0x3E0)<<1)|(((c)&0x1F)<<11))
-#define SGB_PACKSIZE 16
-
-struct mask_shift {
-  unsigned char mask;
-  unsigned char shift;
-};
-struct mask_shift tab_ms[8]={
-  { 0x80,7 },
-  { 0x40,6 },
-  { 0x20,5 },
-  { 0x10,4 },
-  { 0x08,3 },
-  { 0x04,2 },
-  { 0x02,1 },
-  { 0x01,0 }};
-
-Uint8 sgb_pack_buf[112];
-Uint8 sgb_tiles[256*32];
-Uint8 sgb_map[32*32];
-Uint8 sgb_att[32*32];
-long sgb_cur_cmd=-1;
-long sgb_cur_pack=0;
-long sgb_flag=0;
-long sgb_mask=0;
-long sgb_cur_bit=0;
-long sgb_multi_player=0;
-long sgb_four_players=0;
-long sgb_next_ctrlr=0x0f;
-long sgb_reading_ctrlr=0;
-long sgb_cur_bit_shf=0;
-long sgb_state=IDLE;
-Uint32 sgb_scpal[512][4];
-Uint32 sgb_border_pal[64];
-Uint8 sgb_ATF[45][90];
+#include "gboy_sgb.h"
 
 /* SGB Border */
 
@@ -136,7 +97,7 @@ void sgb_draw_tiles(void) {
     for(i=0;i<32;i++) 
       sgb_draw_one_tile(buf,i*8,j*8,sgb_map[i+j*32],sgb_att[i+j*32],pitch);
 
-  vid_sgb_mask();
+  //vid_sgb_mask();
 }
 
 /* Area Designation Mode Functions */

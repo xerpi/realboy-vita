@@ -19,34 +19,7 @@
 
 #include <math.h>
 #include "gboy.h"
-
-static Uint8 back_col[170][170];
-
-/* Global/Exported variables */
-Uint32 spr_pal_inc_indx;
-Uint32 spr_pal_cur_indx;
-Uint32 pal_inc_indx;
-Uint32 pal_cur_indx;
-Uint16 spr_pal[8][4];
-Uint16 bg_pal[8][4];
-
-/* Imported/External variables. Defined in gboy_video.c */
-extern SDL_Surface *back;
-
-struct spr_attr {
-	Sint16 x;
-	Sint16 y;
-	Uint16 tile_num;
-	Uint8 xoff;
-	Uint8 yoff;
-	Uint8 sizey;
-	Uint8 xflip;
-	Uint8 yflip;
-	Uint8 page;
-	Uint8 pal_col;
-	Uint8 pal;
-	Uint8 priority;
-} spr_attr[40];
+#include "gboy_lcd.h"
 
 static void
 render_win_cgb(Uint32 *buf)
@@ -98,6 +71,7 @@ render_win_sgb(Uint32 *buf)
 	Sint16 y, x, i, x1=0;
 	Sint16 tile_num;
 	Uint8 *tile_map, *tile_ptr, color, shftr;
+	int j;
 	
 	/* Pointer to map */
 	if (addr_sp[0xff40]&0x40)
@@ -112,8 +86,7 @@ render_win_sgb(Uint32 *buf)
 
 	/* Offset to column within tile */
 	x = ((addr_sp[0xff4b]-7) < 0 ? 0 : addr_sp[0xff4b]-7);
-
-	for (i=0; x<160; x+=8, i++) {
+	for (j=0, i=0; x<160; x+=8, i++, j+=8) {
 		tile_num = tile_map[i];
 		if (!(addr_sp[0xff40]&0x10))
 			tile_num=256+(signed char)tile_num;
@@ -123,7 +96,7 @@ render_win_sgb(Uint32 *buf)
 		tile_ptr += y;
 		for (shftr=7, x1=0; x1<8 && (x+x1)<160; x1++, shftr--) {
 			color = ((tile_ptr[0]>>shftr)&1)|((((tile_ptr[1]>>shftr))&1)<<1);
-			buf[x+x1] = pal_sgb[sgb_pal_map[x/8][addr_sp[0xff44]/8]][(addr_sp[0xff47]>>(color<<1))&3];
+			buf[x+x1] = pal_sgb[sgb_pal_map[j/8][addr_sp[0xff44]/8]][(addr_sp[0xff47]>>(color<<1))&3];
 			back_col[x+x1][addr_sp[0xff44]]=color;
 		}
 	}
@@ -358,7 +331,7 @@ render_back_cgb(Uint32 *buf)
 static void
 render_back_sgb(Uint32 *buf)
 {
-	int i, j;
+	int i, j, m;
 	Uint8 *ptr_data;
 	Uint8 *ptr_map;
 	Uint8 indx, shftr, x, y, x1;
@@ -383,7 +356,7 @@ render_back_sgb(Uint32 *buf)
 	j &= 7;
 	x = 8-j;
 	shftr=((Uint8)(~j))%8; // shift factor
-	for (; x<168; x+=8) {
+	for (m=0; x<168; x+=8, m+=8) {
 		tile_num = ptr_map[x1++&0x1f];
 		if (!(addr_sp[0xff40]&0x10))
 			tile_num = 256 + (signed char)tile_num;
@@ -391,7 +364,7 @@ render_back_sgb(Uint32 *buf)
 		ptr_data+=(y&7)<<1; // point to row in tile depending on LY and SCROLL Y; each row is 8*2=16 bits=2 bytes
 		for (; j<8 && (x+j)<168; shftr--, j++) {
 			indx = ((ptr_data[0]>>shftr)&1)|((((ptr_data[1]>>shftr))&1)<<1);
-			buf[i] = pal_sgb[sgb_pal_map[x/8][addr_sp[0xff44]/8]][(addr_sp[0xff47]>>(indx<<1))&3];
+			buf[i] = pal_sgb[sgb_pal_map[m/8][addr_sp[0xff44]/8]][(addr_sp[0xff47]>>(indx<<1))&3];
 			back_col[i][addr_sp[0xff44]]=indx;
 			i++;
 		}
@@ -492,13 +465,6 @@ render_scanline(long skip)
 	}
 }
 
-extern long cpu_cur_mode;
-extern long hbln_dma_src;
-extern long hbln_dma_dst;
-extern long hbln_dma;
-extern long hdma_on;
-long dma_pend=0;
-extern long addr_sp_ptrs[16];
 void
 do_vram_dma(Uint8 val)
 {
@@ -507,10 +473,10 @@ do_vram_dma(Uint8 val)
 	char *ptr_dst, *tmp_ptr;
 	int val_offs, i, trans_len;
 
-	if (((val&0x80)==0) && (hdma_on))
+	if (((val&0x80)==0) && (cpu_state.hdma_on))
 	{
 		addr_sp[0xff55] = 0xff;
-		hdma_on=0;
+		cpu_state.hdma_on=0;
 		return;
 	}
 
@@ -535,8 +501,8 @@ do_vram_dma(Uint8 val)
 	/* General-Purpose DMA */
 	if ((val&0x80)==0)
 	{
-		hdma_on=0; // disable HBlank-Driven DMA
-		if (cpu_cur_mode == 1)
+		cpu_state.hdma_on=0; // disable HBlank-Driven DMA
+		if (cpu_state.cpu_cur_mode == 1)
 			dma_pend = 231 + 16 *(val&0x7f);
 		else
 			dma_pend = 231 + 8 *(val&0x7f);
@@ -554,11 +520,11 @@ do_vram_dma(Uint8 val)
 	}
 	/* HBlank-Driven DMA */
 	else {
-		hdma_on = 1;
-		hbln_dma = val&0x7f;
+		cpu_state.hdma_on = 1;
+		cpu_state.hbln_dma = val&0x7f;
 		/* XXX Portable? Any modern architecture with pointers sizes other than 4/8 bytes? */
-		hbln_dma_src = (long)ptr_src & (sizeof(char *) == 4 ? (Uint32)(~1) : (Uint64)(~1));
-		hbln_dma_dst = (long)ptr_dst & (sizeof(char *) == 4 ? (Uint32)(~1) : (Uint64)(~1));
+		cpu_state.hbln_dma_src = (long)ptr_src & (sizeof(char *) == 4 ? (Uint32)(~1) : (Uint64)(~1));
+		cpu_state.hbln_dma_dst = (long)ptr_dst & (sizeof(char *) == 4 ? (Uint32)(~1) : (Uint64)(~1));
 		addr_sp[0xff55] = val&0x7f;
 	}
 }

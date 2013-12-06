@@ -17,16 +17,7 @@
  */
 
 #include "gboy.h"
-#define A_KEY 0
-#define B_KEY 1
-#define START_KEY 2
-#define SELECT_KEY 3
-#define ALL_KEYS 4
-
-char *key_binds_errs[2] = { "Conflicting Key Binding", "Invalid Key Binding" };
-char *key_binds_strs[4] = { "A", "B", "START", "SELECT" };
-char key_binds_ascii[4] = { 'd', 's', '\n', 'a' }; // Array of ASCII keybindings. In order: A, B, Start, Select.
-SDLKey key_binds_SDL[4] = { SDLK_d, SDLK_s, SDLK_RETURN, SDLK_a }; // Array of SDL keybindings. In order: A, B, Start, Select.
+#include "gboy_keys.h"
 
 static void
 print_char(int charac)

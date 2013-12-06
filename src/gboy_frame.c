@@ -17,20 +17,7 @@
  */
 
 #include "gboy.h"
-#define USC 1000000
-#define FRAME_RATE 60
-
-/* Global variable settable through user interface */
-int frames_per_second=60;
-
-static int num_skips=0;
-static struct timeval base={0, 0};
-static struct timeval fps={0, 0};
-static struct timeval ref={0, 0};
-static useconds_t u_base;
-static useconds_t u_fps;
-static useconds_t u_ref;
-static useconds_t u_frm=1000000/60; // microseconds per frame
+#include "gboy_frame.h"
 
 void
 frame_speeddown()

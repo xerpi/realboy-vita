@@ -17,6 +17,7 @@
  */
 
 #include "gboy.h"
+#include "gboy_events.h"
 
 long
 proc_evts()
@@ -30,4 +31,5 @@ proc_evts()
 				return (joy_event(&evnt.key, evnt.type));
 		}
 	}
+	return 0;
 }

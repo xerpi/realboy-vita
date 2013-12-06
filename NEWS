@@ -1,3 +1,8 @@
+Version 0.2.1:
+Important Bug Fix Release.
+- fixed bug that caused segmentation fault in Assembly core.
+View ChangeLog and README files for details.
+
 Version 0.2:
 - add experimental support for Super Game Boy, including Super Game Boy borders.
 - add support for emulation speedup.

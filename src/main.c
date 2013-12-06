@@ -17,33 +17,7 @@
  */
 
 #include "gboy.h"
-/* External symbols */
-extern char *file_path;
-extern int use_boot_rom;
-extern Uint32 scale;
-extern Uint32 fullscreen;
-extern int frames_per_second;
-extern int start_vm();
-extern void vid_scale(int);
-extern void set_fps(int);
-
-/* Locally-global variables*/
-struct option options[] = {
-	{ "video-1x", no_argument, 0, '1' },
-	{ "video-2x", no_argument, 0, '2' },
-	{ "video-3x", no_argument, 0, '3' },
-	{ "video-4x", no_argument, 0, '4' },
-	{ "debug", no_argument, 0, 'd' },
-	{ "frame-rate", required_argument, 0, 'r' },
-	{ "fullscreen", no_argument, 0, 'f' },
-	{ "with-boot", no_argument, 0, 'b' },
-	{ "help", no_argument, 0, 'h' },
-	{ "version", no_argument, 0, 'v' },
-	{ "DMG", no_argument, 0, 'D' },
-	{ "CGB", no_argument, 0, 'C' },
-	{ "SGB", no_argument, 0, 'S' },
-	{ NULL, no_argument, 0, 0 }
-};
+#include "main.h"
 
 static void
 usage(char *cmd)
@@ -130,7 +104,7 @@ main(int argc, char *argv[])
 				break;
 			/* Print current version and exit */
 			case 'v':
-				printf("\nRealBoy 0.2\n");
+				printf("\nRealBoy 0.2.1\n");
 				return 0;
 			/* Force Operation Mode */
 			case 'D':

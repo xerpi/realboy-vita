@@ -17,8 +17,7 @@
  */
 
 #include "gboy.h"
-extern struct cmd_stack *cmd_tail; // pointer to the last command
-void (*gboy_last_func)(int, char **) = 0;
+#include "gboy_parse.h"
 
 /*
  * Skips current line in 'str' starting at offset 'off'.
@@ -52,7 +51,7 @@ skip_blanks(char *str, int off)
 	return off;
 }
 
-int
+void
 gboy_exec_strs(int num_cmds, const char * const gboy_cmds[], 
 							 void (*gboy_funcs[])(int, char **))
 {
@@ -76,7 +75,7 @@ gboy_exec_strs(int num_cmds, const char * const gboy_cmds[],
  * Identify arguments by empty spaces (ie. ' ' character).
  * Arrange an array of pointers to strings in cmd_ptrs.
  */
-int
+void
 gboy_pars_strs(int num_cmds, const char * const gboy_cmds[], 
 			   void (*gboy_funcs[])(int, char **))
 {

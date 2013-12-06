@@ -15,38 +15,19 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
  */
-
-#include "gboy.h"
-#include "gboy_mem.h"
-
-void
-mem_wr(Uint16 gb_addr, Uint8 val, Uint8 *host_addr)
-{
-	if (gb_addr >= 0xff00 && gb_addr < 0xff80)
-		io_ctrl_wr(gb_addr&0xff, val);
-
-	else if (gb_addr < 0x7fff)
-		(gb_mbc.mbc_funcs[(gb_addr>>12)])(val);
-					
-	else
-		*host_addr = val;
-}
-
-Uint8
-mem_rd(Uint16 gb_addr, Uint8 *host_addr)
-{
-	if (gb_addr < 0x8000)
-		return *host_addr;
-
-	if (gb_addr > 0xe000 && gb_addr < 0xfe00)
-		gb_addr &= ~0x2000;
-
-//if (gb_addr < 0xc000) {
-//	
-//}
-
-	if (gb_addr == 0xff00 && gboy_mode==SGB)
-		return sgb_read();
-
-	return *host_addr;
-}
+#include "gboy_cpu.h"
+/* Special assembly-exports declarations */
+extern struct cpu_state cpu_state;
+extern Uint32 gboy_mode; // Game Boy/Color Game Boy mode
+extern long gb_hblank_clks[2];
+extern long gb_vbln_clks[2];
+extern long lcd_vbln_hbln_ctrl;
+extern long key_bitmap;
+extern long addr_sp_ptrs[16];
+extern void write_sound_reg(Uint8, Uint8);
+extern void do_sgb_packet(Uint8);
+extern void do_spr_pal_wr(Uint8);
+extern void do_back_pal_wr(Uint8);
+extern void do_spr_pal(Uint8);
+extern void do_back_pal(Uint8);
+extern void do_vram_dma(Uint8);

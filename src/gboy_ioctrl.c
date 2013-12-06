@@ -17,17 +17,7 @@
  */
 
 #include "gboy.h"
-
-/* Special assembly-exports declarations */
-extern long gb_hblank_clks[2];
-extern long gb_vbln_clks[2];
-extern long lcd_vbln_hbln_ctrl;
-extern Uint32 key_bitmap;
-extern long tac_counter;
-extern long tac_reload;
-extern long tac_on;
-extern long addr_sp_ptrs[16];
-extern void write_sound_reg(unsigned char,unsigned char);
+#include "gboy_ioctrl.h"
 
 static void
 write_sgb_packet(Uint8 val)
@@ -135,14 +125,14 @@ static void
 do_oam_dma(unsigned int val)
 {
 	long *ptr_addr_ptrs = (long *)&addr_sp_ptrs;
-	char *ptr_src;
-	char *ptr_dst;
+	Uint8 *ptr_src;
+	Uint8 *ptr_dst;
 	int val_offs, i;
 
 	val &= 0xff;
 	val <<= 8; // scale
 	val_offs = (val>>12); // offset to pointers
-	ptr_src = (char *)(ptr_addr_ptrs[val_offs]+val);
+	ptr_src = (Uint8 *)(ptr_addr_ptrs[val_offs]+val);
 	ptr_dst = addr_sp + 0xfe00; // OAM
 
 	/* Copy stream (XXX copy word at a time) */
@@ -204,24 +194,24 @@ tac_update(int new_val)
 {
 	switch (new_val&3) {
 		case 0:
-			tac_counter = 64;
+			cpu_state.tac_counter = 64;
 			break;
 		case 1:
-			tac_counter = 1;
+			cpu_state.tac_counter = 1;
 			break;
 		case 2:
-			tac_counter = 4;
+			cpu_state.tac_counter = 4;
 			break;
 		case 3:
-			tac_counter = 16;
+			cpu_state.tac_counter = 16;
 			break;
 	}
 
-	tac_reload=tac_counter;
+	cpu_state.tac_reload=cpu_state.tac_counter;
 	if (new_val&0x4)
-		tac_on=1;
+		cpu_state.tac_on=1;
 	else
-		tac_on=0;
+		cpu_state.tac_on=0;
 }
 
 static void
@@ -328,7 +318,7 @@ lcd_ctrl(int lcdc_new)
 void
 io_ctrl_wr(Uint8 io_off, Uint8 io_new)
 {
-	char *ptr_reg;
+	Uint8 *ptr_reg;
 
 	switch (io_off) {
 		case 0x00:

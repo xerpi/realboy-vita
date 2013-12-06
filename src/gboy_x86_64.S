@@ -96,23 +96,14 @@
 .code64
 
 /* Global symbols */
-.globl rom_exec, addr_sp_ptrs, regs_sets, z80_ldex, z80_cb, gb_vbln_clks, gb_line_clks, gb_clk_rate, gb_oam_clks, gb_hblank_clks, gb_vram_clks, tac_counter, tac_on, tac_reload, nb_spr, lcd_vbln_hbln_ctrl, cpu_cur_mode, hbln_dma, hbln_dma_src, hbln_dma_dst, hdma_on
+.globl rom_exec, regs_sets, z80_ldex, z80_cb, tac_counter, tac_on, tac_reload, cpu_cur_mode, hbln_dma, hbln_dma_src, hbln_dma_dst, hdma_on
 .type rom_exec, @function
-.type addr_sp_ptrs, @object
 .type regs_sets, @object
 .type z80_ldex, @object
 .type z80_cb, @object
-.type gb_vbln_clks, @object
-.type gb_line_clks, @object
-.type gb_clk_rate, @object
-.type gb_oam_clks, @object
-.type gb_hblank_clks, @object
-.type gb_vram_clks, @object
-.type gb_hblank_clks, @object
 .type tac_counter, @object
 .type tac_on, @object
 .type tac_reload, @object
-.type nb_spr, @object
 
 /* Text section */
 .text
@@ -2310,7 +2301,11 @@ op_dec_mem:
 	addq (%r10), %rcx # get offset
 	movq %rcx, %rsi
 	movq %r11, %rdi
+	pushq %rcx
+	pushq %r11
 	call mem_rd
+	popq %r11
+	popq %rcx
 	movq %rax, %rdx # get word
 	subb $1, %dl # subtract, but don't write to memory yet
 	pushf # save flags
@@ -2348,7 +2343,11 @@ op_inc_mem:
 	addq (%r10), %rcx # get offset
 	movq %rcx, %rsi
 	movq %r11, %rdi # restore
+	pushq %rcx
+	pushq %r11
 	call mem_rd
+	popq %r11
+	popq %rcx
 	movq %rax, %rdx # get word
 	addb $1, %dl # increment
 	pushf # save flags
@@ -2494,7 +2493,11 @@ op_shf_lf_arth_mem:
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
 	movq %r11, %rdi
+	pushq %r11
+	pushq %rsi
 	call mem_rd
+	popq %rsi
+	popq %r11
 	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
@@ -2528,7 +2531,11 @@ op_shf_rgh_lg_mem:
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
 	movq %r11, %rdi
+	pushq %r11
+	pushq %rsi
 	call mem_rd
+	popq %rsi
+	popq %r11
 	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
@@ -2562,7 +2569,11 @@ op_shf_rgh_arth_mem:
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
 	movq %r11, %rdi
+	pushq %r11
+	pushq %rsi
 	call mem_rd
+	popq %rsi
+	popq %r11
 	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
@@ -2872,7 +2883,11 @@ op_rot_lf_mem:
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
 	movq %r11, %rdi
+	pushq %r11
+	pushq %rsi
 	call mem_rd
+	popq %rsi
+	popq %r11
 	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
@@ -2913,7 +2928,11 @@ op_rot_lf_c_mem:
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
 	movq %r11, %rdi
+	pushq %r11
+	pushq %rsi
 	call mem_rd
+	popq %rsi
+	popq %r11
 	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
@@ -2949,7 +2968,11 @@ op_rot_rgh_c_mem:
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
 	movq %r11, %rdi
+	pushq %r11
+	pushq %rsi
 	call mem_rd
+	popq %rsi
+	popq %r11
 	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
@@ -2987,7 +3010,11 @@ op_rot_rgh_mem:
 	movq %r11, %rsi
 	addq (%rdi), %rsi # get offset
 	movq %r11, %rdi
+	pushq %r11
+	pushq %rsi
 	call mem_rd
+	popq %rsi
+	popq %r11
 	movq %rax, %rdx
 	movq $regs_sets, %rdi # pointer to flags
 	incq PC(%rdi)
@@ -3115,7 +3142,12 @@ op_swp_mem:
 	movq %r10, %rsi
 	addq (%rdx), %rsi # new PC
 	movq %r10, %rdi
+	pushq %r10
+	pushq %rsi
 	call mem_rd
+	popq %rsi
+	popq %r10
+	movq %r10, %r11
 	movq %rax, %rcx
 	andq $0xff, %rcx # mask in byte
 	movb %cl, %ch
@@ -3155,7 +3187,11 @@ op_set_mem:
 	addq (%rdi), %rsi # new PC
 	movq %r11, %rdi # restore
 	movq %rdx, %rbx
+	pushq %r11
+	pushq %rsi
 	call mem_rd
+	popq %rsi
+	popq %r11
 	movq %rax, %rdx
 	xorq %rcx, %rcx # zero
 	movb 3(%rbx), %ch # extract bit to mask
@@ -3212,7 +3248,11 @@ op_rst_mem:
 	addq (%rdi), %rsi # new PC
 	movq %r11, %rdi # restore
 	movq %rdx, %rbx
+	pushq %r11
+	pushq %rsi
 	call mem_rd
+	popq %rsi
+	popq %r11
 	movq %rax, %rdx
 	xorq %rcx, %rcx # zero
 	movb 3(%rbx), %ch # extract bit to mask
@@ -7224,24 +7264,9 @@ z80_cb:
 
 .p2align 3
 # values according to Game Boy type
-# the defaults for the following are for DMG; they change if type is set to CGB
-gb_clk_rate:
-.quad 4194304
-gb_line_clks:
-.quad 459
-gb_vbln_clks:
-.quad 4590, 4590
-gb_oam_clks:
-.quad 80, 80
-gb_hblank_clks:
-.quad 200, 200
-gb_vram_clks:
-.quad 176, 176
 # these values are commong to Game Boy types
 ints_offs:
 .quad 0x40, 0x48, 0x50, 0x58, 0x60
-addr_sp_ptrs:
-.quad	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 
 ime_flag:
 .quad 1
 # depending on the number of sprites for the line, mode 3 takes extra cycles
@@ -7261,8 +7286,6 @@ hdma_on:
 .quad 0
 cpu_cur_mode:
 .quad 0
-lcd_vbln_hbln_ctrl:
-.quad 0x00000000
 div_ctrl:
 .quad 0
 cpu_halt:
@@ -7276,8 +7299,6 @@ tac_counter:
 tac_reload:
 .quad 0
 skip_next_frame:
-.quad 0
-nb_spr:
 .quad 0
 spr_cur_extr:
 .quad 0

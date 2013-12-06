@@ -17,6 +17,7 @@
  */
 
 #include "gboy.h"
+#include "gboy_mbc5.h"
 
 void
 mbc5_dummy(int val)

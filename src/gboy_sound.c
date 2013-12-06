@@ -18,72 +18,7 @@
  */
 
 #include "gboy.h"
-extern SDL_AudioSpec desired;
-static Sint32 sample, left, right;
-static long samples=0;
-
-struct sqwave {
-	Uint32 frq;
-	Sint32 sample_cnt; // sample counter
-	Sint32 sample_dut_cnt; // sample's duty counter
-	Uint32 swp; // value from register
-	Sint32 swp_cnt; // counter
-	Uint32 swp_shf; // counter
-	Uint32 swp_dir; // counter
-	Uint32 len;
-	Sint32 len_cnt;
-	Uint32 stp_cnt;
-	Uint32 dut;
-	Uint32 env;
-	Sint32 env_cnt;
-	Sint32 env_dir;
-	Uint32 indx; // 2048-frequency index
-	Uint32 mode; // 2048-frequency index
-	Uint32 reinit;
-	Uint32 lft;
-	Uint32 rgh;
-	Uint32 on;
-	Sint32 sig;
-	Uint32 init_env;
-	Sint32 cur_env;
-	float duts[4];
-} sqwave[2];
-
-struct snd_ctrl {
-	Uint32 snd_on;
-	Uint32 rgh_lvl;
-	Uint32 lft_lvl;
-} snd_ctrl;
-
-struct noise {
-	Sint32 cur_env;
-	Sint32 sample_cnt;
-	Sint32 len_cnt;
-	Uint32 len;
-	Uint32 init_env;
-	Uint32 env;
-	Sint32 env_cnt;
-	Sint32 env_dir;
-	Uint32 on;
-	Uint32 mode;
-	Uint32 shf_clk_frq;
-	Uint32 shf_wid;
-	Uint32 lft;
-	Sint32 sig;
-	Uint32 rgh;
-	Uint32 div_rat;
-	Uint32 div_rat_cnt;
-	Uint32 shf_frq;
-	Uint32 freq;
-	Uint32 mask;
-	Sint16 shf_reg;
-} noise;
-
-Uint32 buf_full=0;
-Uint32 buf_pos=0;
-Uint32 buf_siz;
-Uint32 samp_rate;
-Sint32 samp_cnt;
+#include "gboy_sound.h"
 
 void
 sound_update()
