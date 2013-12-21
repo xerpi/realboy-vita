@@ -1,3 +1,9 @@
+2013-12-20	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
+Version 0.2.2
+	* gboy_ioctrl.c, gboy_ioctrl.h: Fixed crucial bug related to Assembly core declarations.
+	* gboy_lcd.c, gboy_lcd.h: Fixed crucial bug related to Assembly core declarations.
+	* gboy_conf.c: Fixed not applying default configurations on first execution.
+
 2013-12-01	Sergio Andrés Gómez del Real	<Sergio.G.DelReal@gmail.com>
 Version 0.2.1
 	* gboy_x86_64.S: Crucial bug that would cause segmentation fault fixed.

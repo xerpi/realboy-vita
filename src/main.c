@@ -104,7 +104,7 @@ main(int argc, char *argv[])
 				break;
 			/* Print current version and exit */
 			case 'v':
-				printf("\nRealBoy 0.2.1\n");
+				printf("\nRealBoy 0.2.2\n");
 				return 0;
 			/* Force Operation Mode */
 			case 'D':
