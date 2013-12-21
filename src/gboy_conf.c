@@ -35,6 +35,7 @@ apply_conf_defs()
 	vid_no_fullscreen();
 	use_boot_rom=0;
 	gboy_mode=0;
+	gboy_hw=AUTO;
 }
 
 static int
@@ -296,6 +297,7 @@ init_conf()
 		if ( (fwrite(default_conf, 1, strnlen(default_conf, 1000), file_conf)) == 0)
 			perror("fwrite()");
 		printf("**********************************\n");
+		apply_conf_defs();
 	}
 	else {
 		printf("Found Configuration File %s%s\n", home_path, "/.realboy/RealBoy.conf");

@@ -15,9 +15,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
  */
+#ifdef USE_X86_64_ASM
+extern long tac_counter;
+extern long tac_reload;
+extern long tac_on;
+#else
 #include "gboy_cpu.h"
-/* Special assembly-exports declarations */
 extern struct cpu_state cpu_state;
+#endif
+/* Special assembly-exports declarations */
 extern Uint32 gboy_mode; // Game Boy/Color Game Boy mode
 extern long gb_hblank_clks[2];
 extern long gb_vbln_clks[2];

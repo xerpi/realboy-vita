@@ -473,10 +473,18 @@ do_vram_dma(Uint8 val)
 	char *ptr_dst, *tmp_ptr;
 	int val_offs, i, trans_len;
 
+#ifdef USE_X86_64_ASM
+	if (((val&0x80)==0) && (hdma_on))
+#else
 	if (((val&0x80)==0) && (cpu_state.hdma_on))
+#endif
 	{
 		addr_sp[0xff55] = 0xff;
+#ifdef USE_X86_64_ASM
+		hdma_on=0;
+#else
 		cpu_state.hdma_on=0;
+#endif
 		return;
 	}
 
@@ -501,8 +509,16 @@ do_vram_dma(Uint8 val)
 	/* General-Purpose DMA */
 	if ((val&0x80)==0)
 	{
+#ifdef USE_X86_64_ASM
+		hdma_on=0; // disable HBlank-Driven DMA
+#else
 		cpu_state.hdma_on=0; // disable HBlank-Driven DMA
+#endif
+#ifdef USE_X86_64_ASM
+		if (cpu_cur_mode == 1)
+#else
 		if (cpu_state.cpu_cur_mode == 1)
+#endif
 			dma_pend = 231 + 16 *(val&0x7f);
 		else
 			dma_pend = 231 + 8 *(val&0x7f);
@@ -520,11 +536,19 @@ do_vram_dma(Uint8 val)
 	}
 	/* HBlank-Driven DMA */
 	else {
+#ifdef USE_X86_64_ASM
+		hdma_on = 1;
+		hbln_dma = val&0x7f;
+		/* XXX Portable? Any modern architecture with pointers sizes other than 4/8 bytes? */
+		hbln_dma_src = (long)ptr_src & (sizeof(char *) == 4 ? (Uint32)(~1) : (Uint64)(~1));
+		hbln_dma_dst = (long)ptr_dst & (sizeof(char *) == 4 ? (Uint32)(~1) : (Uint64)(~1));
+#else
 		cpu_state.hdma_on = 1;
 		cpu_state.hbln_dma = val&0x7f;
 		/* XXX Portable? Any modern architecture with pointers sizes other than 4/8 bytes? */
 		cpu_state.hbln_dma_src = (long)ptr_src & (sizeof(char *) == 4 ? (Uint32)(~1) : (Uint64)(~1));
 		cpu_state.hbln_dma_dst = (long)ptr_dst & (sizeof(char *) == 4 ? (Uint32)(~1) : (Uint64)(~1));
+#endif
 		addr_sp[0xff55] = val&0x7f;
 	}
 }

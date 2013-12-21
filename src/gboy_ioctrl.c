@@ -194,24 +194,52 @@ tac_update(int new_val)
 {
 	switch (new_val&3) {
 		case 0:
+#ifdef USE_X86_64_ASM
+			tac_counter = 64;
+#else
 			cpu_state.tac_counter = 64;
+#endif
 			break;
 		case 1:
+#ifdef USE_X86_64_ASM
+			tac_counter = 1;
+#else
 			cpu_state.tac_counter = 1;
+#endif
 			break;
 		case 2:
+#ifdef USE_X86_64_ASM
+			tac_counter = 4;
+#else
 			cpu_state.tac_counter = 4;
+#endif
 			break;
 		case 3:
+#ifdef USE_X86_64_ASM
+			tac_counter = 16;
+#else
 			cpu_state.tac_counter = 16;
+#endif
 			break;
 	}
 
+#ifdef USE_X86_64_ASM
+	tac_reload=tac_counter;
+#else
 	cpu_state.tac_reload=cpu_state.tac_counter;
+#endif
 	if (new_val&0x4)
+#ifdef USE_X86_64_ASM
+		tac_on=1;
+#else
 		cpu_state.tac_on=1;
+#endif
 	else
+#ifdef USE_X86_64_ASM
+		tac_on=0;
+#else
 		cpu_state.tac_on=0;
+#endif
 }
 
 static void

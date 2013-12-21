@@ -16,7 +16,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
  */
+#ifdef USE_X86_64_ASM
+extern long cpu_cur_mode;
+extern long hbln_dma_src;
+extern long hbln_dma_dst;
+extern long hbln_dma;
+extern long hdma_on;
+#else
+extern struct gboy_cpu gboy_cpu;
 #include "gboy_cpu.h"
+#endif
 static Uint8 back_col[170][170];
 struct spr_attr {
 	Sint16 x;
@@ -53,16 +62,10 @@ long gb_hblank_clks[2] = { 200, 200 };
 long gb_vram_clks[2] = { 176, 176 };
 
 /* Imported/External variables. Defined in gboy_video.c */
-extern struct gboy_cpu gboy_cpu;
 extern Uint32 gboy_mode; // Game Boy/Color Game Boy mode
 extern SDL_Surface *back;
 extern Uint32 pal_sgb[4][4]; // 32-bit palette for Super Game Boy
 extern Uint32 pal_grey[4]; // 32-bit palette for monochrome Game Boy
 extern Uint32 pal_color[32*32*32]; // 32-bit palette for Color Game Boy
-extern long cpu_cur_mode;
-extern long hbln_dma_src;
-extern long hbln_dma_dst;
-extern long hbln_dma;
-extern long hdma_on;
 long dma_pend=0;
 extern long addr_sp_ptrs[16];
