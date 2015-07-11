@@ -68,8 +68,8 @@ void
 vid_scale(Uint32 scale_factor)
 {
 	scale = scale_factor;
-	pos_x = SCREEN_W/2 - (160/2)*scale;
-	pos_y = SCREEN_H/2 - (144/2)*scale;
+	pos_x = SCREEN_W/2 - (gb_height/2)*scale;
+	pos_y = SCREEN_H/2 - (gb_width/2)*scale;
 }
 
 void
@@ -81,10 +81,7 @@ vid_toggle_aalias()
 void
 vid_toggle_fullscreen()
 {
-	if (fullscreen == 1)
-		fullscreen = 0;
-	else
-		fullscreen = 1;
+	fullscreen ^= 1;
 }
 
 void
@@ -119,19 +116,25 @@ vid_sgb_mask()
 void
 vid_frame_update()
 {
-	if (gboy_mode == SGB) {
-		vid_sgb_mask();
-	}
+	vita2d_texture *disp;
 
 	vita2d_start_drawing();
 	vita2d_clear_screen();
 
-	vita2d_draw_texture_part_scale(back->tex,
+	if (gboy_mode == SGB) {
+		vid_sgb_mask();
+		disp = sgb_buf->tex;
+	} else {
+		disp = back->tex;
+	}
+
+	vita2d_draw_texture_part_scale(disp,
 		pos_x, pos_y,
 		0, 0,
 		/* w and h are swapped */
 		gb_height, gb_width,
 		scale, scale);
+
 
 	vita2d_end_drawing();
 	vita2d_swap_buffers();
@@ -177,4 +180,6 @@ vid_start()
 	}
 
 	back = CreateSurface(160, 146);
+	pos_x = SCREEN_W/2 - (gb_height/2)*scale;
+	pos_y = SCREEN_H/2 - (gb_width/2)*scale;
 }

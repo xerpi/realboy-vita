@@ -396,6 +396,11 @@ alloc_addr_sp()
 int
 start_vm()
 {
+#ifdef VITA
+	/* Reset the current cartridge */
+	memset(&gb_cart, 0, sizeof(gb_cart));
+#endif
+
 	/* Read cartridge's header */
 	fread(cart_init_rd, 1, CART_HDR, rom_file);
 
