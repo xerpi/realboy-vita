@@ -160,9 +160,6 @@ int file_choose(const char *start_path, char *chosen_file, const char *title, co
 		if (pad.buttons & PSP2_CTRL_SELECT) break;
 		keys_down = pad.buttons & ~old_pad.buttons;
 
-		if (keys_down & PSP2_CTRL_RTRIGGER)
-			sceIoRemove("cache0:/VitaDefilerClient/Documents/realboy/RealBoy.conf");
-
 		if (keys_down & PSP2_CTRL_UP) {
 			selected--;
 			if (selected < 0) {
@@ -205,7 +202,7 @@ int file_choose(const char *start_path, char *chosen_file, const char *title, co
 		vita2d_start_drawing();
 		vita2d_clear_screen();
 
-		font_draw_stringf(10, 10, WHITE, "Choose a file:");
+		font_draw_stringf(10, 10, WHITE, title);
 
 		entry = list.head;
 		for (i = 0; i < list.length; i++) {

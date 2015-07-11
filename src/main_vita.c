@@ -23,7 +23,7 @@
 PSP2_MODULE_INFO(0, 0, "realboy");
 
 static const char *supported_ext[] = {
-	"gb", "gbc", NULL
+	"gb", "gbc", "sgb", NULL
 };
 
 int main()
@@ -41,7 +41,7 @@ int main()
 		file_choose(
 			current_dir,
 			rom_path,
-			"Choose a GB/GB Color ROM:",
+			"Choose a GB/GB Color/Super GB ROM:",
 			supported_ext
 			);
 
