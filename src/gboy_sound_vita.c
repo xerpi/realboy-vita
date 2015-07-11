@@ -19,6 +19,7 @@
 
 #include "gboy.h"
 #include "gboy_sound_vita.h"
+#include "vita_audio.h"
 
 void
 sound_update()
@@ -456,6 +457,45 @@ update_stream(void *userdata,Uint8 *stream,int snd_len)
 }
 
 
+void AudioCallback(void *buffer, unsigned int *length, void *userdata)
+{
+	PspMonoSample *OutBuf = (PspMonoSample*)buffer;
+	int i;
+	int len = *length >> 1;
+
+	/*if(((int)lynx->gAudioBufferPointer >= len)
+		&& (lynx->gAudioBufferPointer != 0) && (!lynx->gSystemHalt) ) {
+		for (i = 0; i < len; i++) {
+			short sample = (short)(((int)lynx->gAudioBuffer[i] << 8) - 32768);
+			(OutBuf++)->Channel = sample;
+			(OutBuf++)->Channel = sample;
+		}
+		lynx->gAudioBufferPointer = 0;
+	} else {
+		*length = 64;
+		for (i = 0; i < (int)*length; i+=2) {
+			(OutBuf++)->Channel = 0;
+			(OutBuf++)->Channel = 0;
+		}
+	}*/
+
+	while (buf_full==0) {
+		//if (snd_ticks>=samp_cnt)
+			sound_update();
+		//else
+		//	break;
+	}
+	//memcpy(OutBuf, playbuf, len);
+
+	for (i = 0; i < len; i++) {
+		(OutBuf++)->Channel = playbuf[i];
+		(OutBuf++)->Channel = playbuf[i];
+	}
+
+	memset(playbuf, 0, len);
+	buf_full = 0;
+}
+
 static void
 init_gb_snd()
 {
@@ -489,30 +529,26 @@ init_gb_snd()
 void
 snd_reset()
 {
-	//SDL_PauseAudio(1);
-	//SDL_CloseAudio();
-	//SDL_QuitSubSystem(//SDL_INIT_AUDIO);
+	//pspAudioShutdown();
 	free(playbuf);
 }
 
 void
 snd_start()
 {
-	//SDL_Init(//SDL_INIT_AUDIO);
-	desired.freq = 44100;
+	desired.freq = 48000;
 	desired.samples = 2048;
 	//desired.format = AUDIO_S16SYS;
-	desired.channels = 2;
+	desired.channels = 1;
 	desired.callback = update_stream;
 	desired.userdata = NULL;
 
-	/* Open audio */
-	/*if (!SDL_OpenAudio(&desired,NULL)) {
-		samp_rate = desired.freq;
-		buf_siz = desired.size;
-		init_gb_snd();
-		playbuf=(Sint16 *)malloc(desired.size+1);
-		memset(playbuf,0,desired.size);
-		SDL_PauseAudio(0);
-	}*/
+	//pspAudioInit(desired.samples, 0);
+	//pspAudioSetChannelCallback(0, AudioCallback, 0);
+
+	samp_rate = desired.freq;
+	buf_siz = desired.size;
+	init_gb_snd();
+	playbuf=(Sint16 *)malloc(desired.size+1);
+	memset(playbuf,0,desired.size);
 }

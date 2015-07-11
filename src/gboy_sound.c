@@ -2,9 +2,9 @@
  * Game Boy sound emulation (c) Anthony Kruize (trandor@labyrinth.net.au)
  * Copyright (C) 2013 Sergio Andrés Gómez del Real
  *
- * This program is free software; you can redistribute it and/or modify  
- * it under the terms of the GNU General Public License as published by   
- * the Free Software Foundation; either version 2 of the License, or    
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include "gboy.h"
@@ -26,7 +26,7 @@ sound_update()
 
 	Sint32 i;
 	samples = samp_cnt*desired.samples;
-	
+
 	while (1)
 	{
 		left=right=0;
@@ -44,7 +44,7 @@ sound_update()
 				sqwave[0].sample_cnt+=(gb_clk_rate/(gb_clk_rate/((2048-sqwave[0].frq)<<5)));
 				sqwave[0].sample_dut_cnt+=sqwave[0].sample_cnt/sqwave[0].duts[sqwave[0].dut];
 			}
-	
+
 			if (sqwave[0].mode==1 && sqwave[0].len)
 			{
 				if ((sqwave[0].len_cnt-=samp_cnt)<=0)
@@ -135,7 +135,7 @@ sound2:;
 				sqwave[1].sample_cnt+=(gb_clk_rate/(gb_clk_rate/((2048-sqwave[1].frq)<<5)));
 				sqwave[1].sample_dut_cnt+=sqwave[1].sample_cnt/sqwave[1].duts[sqwave[1].dut];
 			}
-	
+
 			if (sqwave[1].mode==1 && sqwave[1].len)
 			{
 				if ((sqwave[1].len_cnt-=samp_cnt)<=0)
@@ -456,6 +456,30 @@ update_stream(void *userdata,Uint8 *stream,int snd_len)
 }
 
 
+void AudioCallback(void *buffer, unsigned int *length, void *userdata)
+{
+	PspMonoSample *OutBuf = (PspMonoSample*)buffer;
+	int i;
+	int len = *length >> 1;
+
+	if(((int)lynx->gAudioBufferPointer >= len)
+		&& (lynx->gAudioBufferPointer != 0) && (!lynx->gSystemHalt) ) {
+		for (i = 0; i < len; i++) {
+			short sample = (short)(((int)lynx->gAudioBuffer[i] << 8) - 32768);
+			(OutBuf++)->Channel = sample;
+			(OutBuf++)->Channel = sample;
+		}
+		lynx->gAudioBufferPointer = 0;
+	} else {
+		*length = 64;
+		for (i = 0; i < (int)*length; i+=2) {
+			(OutBuf++)->Channel = 0;
+			(OutBuf++)->Channel = 0;
+		}
+	}
+}
+
+
 static void
 init_gb_snd()
 {
@@ -514,5 +538,5 @@ snd_start()
 		playbuf=(Sint16 *)malloc(desired.size+1);
 		memset(playbuf,0,desired.size);
 		SDL_PauseAudio(0);
-	} 
+	}
 }

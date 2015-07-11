@@ -22,9 +22,10 @@
 
 PSP2_MODULE_INFO(0, 0, "realboy");
 
-/*
- * Main function.
- */
+static const char *supported_ext[] = {
+	"gb", "gbc", NULL
+};
+
 int main()
 {
 	char rom_path[PATH_MAX];
@@ -36,7 +37,13 @@ int main()
 
 	while (1) {
 		strcpy(current_dir, "cache0:/VitaDefilerClient/Documents");
-		file_choose(current_dir, rom_path);
+
+		file_choose(
+			current_dir,
+			rom_path,
+			"Choose a GB/GB Color ROM:",
+			supported_ext
+			);
 
 		if ( (rom_file = fopen(rom_path, "r")) == NULL) {
 			printf("\nError opening %s\n", rom_path);

@@ -11,11 +11,13 @@
 #include "font.h"
 #include "file_chooser.h"
 
-#define WHITE RGBA8(255,255,255,255)
+#define WHITE RGBA8(255, 255, 255, 255)
+#define GREEN RGBA8(0,   255, 0  , 255)
 
 typedef struct file_list_entry {
 	char name[PATH_MAX];
 	int is_dir;
+	int supported;
 	struct file_list_entry *next;
 } file_list_entry;
 
@@ -50,7 +52,23 @@ static void file_list_empty(file_list *list)
 	memset(list, 0, sizeof(*list));
 }
 
-static int file_list_build(const char *path, file_list *list)
+static int file_supported(const char *filename, const char *supported_ext[])
+{
+	int i;
+	const char *ext = strrchr(filename, '.');
+	if (ext) {
+		i = 0;
+		while (supported_ext[i]) {
+			if (strcmp(ext + 1, supported_ext[i]) == 0) {
+				return 1;
+			}
+			i++;
+		}
+	}
+	return 0;
+}
+
+static int file_list_build(const char *path, file_list *list, const char *supported_ext[])
 {
 	SceUID dir;
 	SceIoDirent dirent;
@@ -69,6 +87,9 @@ static int file_list_build(const char *path, file_list *list)
 
 		strcpy(entry->name, dirent.d_name);
 		entry->is_dir = PSP2_S_ISDIR(dirent.d_stat.st_mode);
+		if (!entry->is_dir) {
+			entry->supported = file_supported(entry->name, supported_ext);
+		}
 
 		file_list_add_entry(list, entry);
 
@@ -117,7 +138,7 @@ static void dir_up(char *path)
 }
 
 
-int file_choose(const char *start_path, char *chosen_file)
+int file_choose(const char *start_path, char *chosen_file, const char *title, const char *supported_ext[])
 {
 	SceCtrlData pad, old_pad;
 	unsigned int keys_down;
@@ -132,7 +153,7 @@ int file_choose(const char *start_path, char *chosen_file)
 	file_list list;
 	file_list_entry *entry;
 
-	file_list_build(cur_path, &list);
+	file_list_build(cur_path, &list, supported_ext);
 
 	while (1) {
 		sceCtrlPeekBufferPositive(0, &pad, 1);
@@ -156,6 +177,7 @@ int file_choose(const char *start_path, char *chosen_file)
 
 		if (keys_down & (PSP2_CTRL_CROSS | PSP2_CTRL_START)) {
 			file_list_entry *entry = file_list_get_nth_entry(&list, selected);
+
 			if (entry->is_dir) {
 				if (strcmp(entry->name, "..") == 0) {
 					dir_up(cur_path);
@@ -165,14 +187,20 @@ int file_choose(const char *start_path, char *chosen_file)
 					strcpy(cur_path, new_path);
 				}
 				file_list_empty(&list);
-				file_list_build(cur_path, &list);
+				file_list_build(cur_path, &list, supported_ext);
 				selected = 0;
-			} else {
+			} else if (entry->supported) {
 				sprintf(chosen_file, "%s/%s", cur_path, entry->name);
 				file_list_empty(&list);
 				return 1;
 			}
+		} else if (keys_down & PSP2_CTRL_CIRCLE) {
+			dir_up(cur_path);
+			file_list_empty(&list);
+			file_list_build(cur_path, &list, supported_ext);
+			selected = 0;
 		}
+
 
 		vita2d_start_drawing();
 		vita2d_clear_screen();
@@ -185,7 +213,7 @@ int file_choose(const char *start_path, char *chosen_file)
 			font_draw_stringf(
 				10,
 				40 + i*20,
-				WHITE,
+				(!entry->is_dir && entry->supported) ? GREEN : WHITE,
 				"%s %s",
 				(selected == i) ? ">" : "",
 				entry->name);
