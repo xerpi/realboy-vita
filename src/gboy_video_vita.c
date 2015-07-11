@@ -25,7 +25,7 @@ static int pos_y = 0;
 static Surface *CreateSurface(int width, int height)
 {
 	Surface *surface = malloc(sizeof(*surface));
-	surface->tex = vita2d_create_empty_texture(width, height);
+	surface->tex = vita2d_create_empty_texture_format(width, height, SCE_GXM_TEXTURE_FORMAT_X8U8U8U8_1RGB);
 	surface->pixels = vita2d_texture_get_datap(surface->tex);
 	surface->x = 0;
 	surface->y = 0;
@@ -96,45 +96,22 @@ vid_reset()
 void
 vid_sgb_mask()
 {
-	/*if (temp==sgb_1) {
-		if (sgb_mask) {
-			//SDL_FillRect(back,NULL,0);
-		} else {
-			//SDL_BlitSurface(sgb_buf, NULL, screen, NULL);
-		}
-	}
-	else {
-		//sgb_buf_back = _zoomSurfaceRGBA(sgb_buf, temp, 0, 0, anti_alias);
-		if (sgb_mask) {
-			//SDL_FillRect(back,NULL,0);
-		} else {
-			//SDL_BlitSurface(sgb_buf_back, NULL, screen, NULL);
-		}
-	}*/
 }
 
 void
 vid_frame_update()
 {
-	vita2d_texture *disp;
-
 	vita2d_start_drawing();
 	vita2d_clear_screen();
 
-	if (gboy_mode == SGB) {
-		vid_sgb_mask();
-		disp = sgb_buf->tex;
-	} else {
-		disp = back->tex;
+	if (gboy_mode != SGB || !sgb_mask) {
+		vita2d_draw_texture_part_scale(back->tex,
+			pos_x, pos_y,
+			0, 0,
+			/* w and h are swapped */
+			gb_height, gb_width,
+			scale, scale);
 	}
-
-	vita2d_draw_texture_part_scale(disp,
-		pos_x, pos_y,
-		0, 0,
-		/* w and h are swapped */
-		gb_height, gb_width,
-		scale, scale);
-
 
 	vita2d_end_drawing();
 	vita2d_swap_buffers();
@@ -150,24 +127,24 @@ vid_start()
 
 	/* Initialize Game Boy or Game Boy Color palette */
 	if (gboy_mode==DMG) {
-		pal_grey[0]=0xffffffff;
-		pal_grey[1]=0xff917d5e;
-		pal_grey[2]=0xff635030;
-		pal_grey[3]=0xff211a10;
+		pal_grey[0]=0xffffff;
+		pal_grey[1]=0x917d5e;
+		pal_grey[2]=0x635030;
+		pal_grey[3]=0x211a10;
 		gb_height=160;
 		gb_width=144;
 	} else if (gboy_mode==CGB) {
 		for (i = 0; i < 32768; i++) {
 			cur_col = (((i&0x1f)<<3)<<16) | ((((i>>5)&0x1f)<<3)<<8) | (((i>>10)&0x1f)<<3);
-			pal_color[i] = 0xff000000 | cur_col;
+			pal_color[i] = cur_col;
 		}
 		gb_height=160;
 		gb_width=144;
 	} else {
-		pal_grey[0]=0xffffffff;
-		pal_grey[1]=0xff917d5e;
-		pal_grey[2]=0xff635030;
-		pal_grey[3]=0xff211a10;
+		pal_grey[0]=0xffffff;
+		pal_grey[1]=0x917d5e;
+		pal_grey[2]=0x635030;
+		pal_grey[3]=0x211a10;
 		for (i = 0; i < 4; i++) {
 			pal_sgb[i][0]=pal_grey[0];
 			pal_sgb[i][1]=pal_grey[1];
@@ -175,8 +152,11 @@ vid_start()
 			pal_sgb[i][3]=pal_grey[3];
 		}
 		sgb_buf = CreateSurface(256, 226);
-		gb_height=256;
-		gb_width=224;
+		/* Don't draw the Super GameBoy Border */
+		// gb_height=256;
+		// gb_width=224;
+		gb_height=160;
+		gb_width=144;
 	}
 
 	back = CreateSurface(160, 146);
