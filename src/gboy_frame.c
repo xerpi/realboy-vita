@@ -41,7 +41,7 @@ void
 frame_reset()
 {
 #ifdef VITA
-
+	u_base = 0;
 #else
 	base.tv_sec=0;
 	base.tv_usec=0;

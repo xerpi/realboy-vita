@@ -18,6 +18,7 @@
 
 #include "gboy.h"
 #include "main.h"
+#include "file_chooser.h"
 
 PSP2_MODULE_INFO(0, 0, "realboy");
 
@@ -30,22 +31,19 @@ int main()
 
 	printf("\nRealBoy %s\n", "0.2.2");
 
-	strcpy(current_dir, "cache0:/VitaDefilerClient/Documents");
-
 	vita2d_init();
 	vita2d_set_clear_color(RGBA8(0x40, 0x40, 0x40, 0xFF));
 
 	while (1) {
-		file_choose("cache0:/VitaDefilerClient/Documents", rom_path);
+		strcpy(current_dir, "cache0:/VitaDefilerClient/Documents");
+		file_choose(current_dir, rom_path);
 
-		vid_scale(3);
-		vid_toggle_fullscreen();
-		use_boot_rom = 0;
-
-		if ( (rom_file = fopen(rom_path, "r")) == NULL)
+		if ( (rom_file = fopen(rom_path, "r")) == NULL) {
 			printf("\nError opening %s\n", rom_path);
-		else
-			file_path = strndup(rom_path, 256);
+			continue;
+		}
+
+		file_path = strndup(rom_path, 256);
 
 		if (rom_file != NULL)	{
 			init_conf();
@@ -57,6 +55,8 @@ int main()
 				printf("File %s not a gb binary\n\n", rom_path);
 			}
 		}
+
+		free(file_path);
 	}
 
 	vita2d_fini();

@@ -1,9 +1,9 @@
 /* RealBoy Emulator: Free, Fast, Yet Accurate, Game Boy/Game Boy Color Emulator.
  * Copyright (C) 2013 Sergio Andrés Gómez del Real
  *
- * This program is free software; you can redistribute it and/or modify  
- * it under the terms of the GNU General Public License as published by   
- * the Free Software Foundation; either version 2 of the License, or    
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 /* Globally local variables */
 long conf_ignore_scale = 0;
@@ -21,7 +21,11 @@ long conf_ignore_fullscreen = 0;
 long conf_ignore_fps = 0;
 long conf_ignore_boot = 0;
 long conf_ignore_mode = 0;
+#ifdef VITA
+static const char default_conf[] = "# RealBoy Configuration File.\n\n# Frame rate setting. Values are from 10 to 60 inclusive.\nframe_rate=\"60\"\n\n# Video Scale: 1x, 2x, 3x, 4x.\nvideo_scale=\"3\"\n\n# Use fullscreen mode. 0=false, any other value means true\nvideo_fullscreen=\"0\"\n\n# Use boot ROM. 0=false, any other value means true\nboot_rom=\"0\"\n\n# Game Boy type. 0=Auto, 1=Force DMG, 2=Force CGB, 3=Force SGB\ngboy_type=\"0\"";
+#else
 static const char default_conf[] = "# RealBoy Configuration File.\n\n# Key mappings\nA='d'\nB='s'\nStart='\\n'\nSelect='a'\n\n# Frame rate setting. Values are from 10 to 60 inclusive.\nframe_rate=\"60\"\n\n# Video Scale: 1x, 2x, 3x, 4x.\nvideo_scale=\"1\"\n\n# Use fullscreen mode. 0=false, any other value means true\nvideo_fullscreen=\"0\"\n\n# Use boot ROM. 0=false, any other value means true\nboot_rom=\"0\"\n\n# Game Boy type. 0=Auto, 1=Force DMG, 2=Force CGB, 3=Force SGB\ngboy_type=\"0\"";
+#endif
 static const char *conf_opts[] = { "A", "B", "Start", "Select", "frame_rate", "video_scale", "video_fullscreen", "boot_rom", "gboy_type", NULL };
 static FILE *file_conf;
 

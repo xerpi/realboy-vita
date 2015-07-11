@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <psp2/io/fcntl.h>
+#include <psp2/io/dirent.h>
 #include "utils.h"
 
 /* libc functions */
@@ -49,8 +51,8 @@ char *basename(const char *name)
 int chdir(const char *path)
 {
 	if (strcmp(path, "..") == 0) {
-		char *new = dirname(current_dir);
-		strcpy(current_dir, new);
+		const char *new_path = dirname(current_dir);
+		strcpy(current_dir, new_path);
 	} else {
 		if (strstr(path, "cache0:/")) {
 			strcpy(current_dir, path);
@@ -61,11 +63,6 @@ int chdir(const char *path)
 		}
 	}
 	return 0;
-}
-
-int mkdir(const char *pathname, mode_t mode)
-{
-	return sceIoMkdir(pathname, mode);
 }
 
 char *getenv(const char *name)

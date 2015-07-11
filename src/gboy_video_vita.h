@@ -15,9 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-/* Locally-global variables */
-static Surface *back1 = NULL;
-static Surface *temp=NULL;
 
 /* Global/Exported variables */
 Uint32 pal_sgb[4][4]; // 32-bit palette for Super Game Boy
@@ -27,18 +24,12 @@ Uint32 gb_height;
 Uint32 gb_width;
 Uint32 scale=1;
 Uint32 anti_alias=0;
-Surface *screen = NULL;
 Surface *back = NULL;
 Surface *sgb_buf = NULL;
-Surface *sgb_buf_back = NULL;
-Surface *zoomS = NULL;
-Surface *x1 = NULL;
-Surface *sgb_1 = NULL;
 Uint32 fullscreen;
 
 /* Imported/External variables */
 extern Uint32 gboy_mode; // Game Boy/Color Game Boy mode
-extern Surface *_zoomSurfaceRGBA(Surface *, Surface *, int, int, int);
 extern Surface *back;
 extern long sgb_mask;
 

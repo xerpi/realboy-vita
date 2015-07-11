@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #ifdef VITA
 
@@ -59,15 +60,12 @@ typedef struct {
 #define SCREEN_W 960
 #define SCREEN_H 544
 
-
 #else
-#include <ctype.h>
 #include <libgen.h>
 #include <time.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <unistd.h>
 #include <getopt.h>
 #include <string.h>
 #include <fcntl.h>

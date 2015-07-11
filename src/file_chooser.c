@@ -139,6 +139,9 @@ int file_choose(const char *start_path, char *chosen_file)
 		if (pad.buttons & PSP2_CTRL_SELECT) break;
 		keys_down = pad.buttons & ~old_pad.buttons;
 
+		if (keys_down & PSP2_CTRL_RTRIGGER)
+			sceIoRemove("cache0:/VitaDefilerClient/Documents/realboy/RealBoy.conf");
+
 		if (keys_down & PSP2_CTRL_UP) {
 			selected--;
 			if (selected < 0) {

@@ -26,6 +26,14 @@
 static void
 apply_conf_defs()
 {
+#ifdef VITA
+	set_fps(60);
+	vid_scale(3);
+	vid_no_fullscreen();
+	use_boot_rom = 0;
+	gboy_mode = 0;
+	gboy_hw = DMG;
+#else
 	joy_remap('d', 0);
 	joy_remap('s', 1);
 	joy_remap('\n', 2);
@@ -36,6 +44,7 @@ apply_conf_defs()
 	use_boot_rom=0;
 	gboy_mode=0;
 	gboy_hw=AUTO;
+#endif
 }
 
 static int
@@ -233,6 +242,8 @@ apply_conf()
 	conf_str[file_size] = '\0';
 
 	parse_conf(conf_str);
+	free(conf_str);
+	fclose(file_conf);
 }
 
 void
@@ -298,6 +309,12 @@ init_conf()
 	else
 		printf("Found Saves Directory %s/%s\n", home_path, CONF_DIR_NAME"/saves");
 
+	/* VITA HACK: don't use the config file */
+#ifdef VITA
+	apply_conf_defs();
+	return;
+#endif
+
 	/* Search for configuration file */
 	found_file = search_file_dir("RealBoy.conf", ".");
 	/* Create default configuration file if it doesn't exist */
@@ -317,6 +334,7 @@ init_conf()
 			perror("fwrite()");
 		printf("**********************************\n");
 		apply_conf_defs();
+		fclose(file_conf);
 	}
 	else {
 		printf("Found Configuration File %s/%s\n", home_path, CONF_DIR_NAME"/RealBoy.conf");

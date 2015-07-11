@@ -67,8 +67,6 @@ vid_is_fullscreen()
 void
 vid_scale(Uint32 scale_factor)
 {
-	/*if (screen != NULL)
-		screen = SDL_SetVideoMode(gb_height*scale_factor, gb_width*scale_factor, 32, SDL_RESIZABLE|fullscreen);*/
 	scale = scale_factor;
 	pos_x = SCREEN_W/2 - (160/2)*scale;
 	pos_y = SCREEN_H/2 - (144/2)*scale;
@@ -87,34 +85,21 @@ vid_toggle_fullscreen()
 		fullscreen = 0;
 	else
 		fullscreen = 1;
-	/*if ( (screen = SDL_SetVideoMode(gb_height*scale, gb_width*scale, 32, SDL_RESIZABLE|fullscreen)) == NULL)
-		printf("SDL error %s\n", SDL_GetError());*/
 }
 
 void
 vid_reset()
 {
-	FreeSurface(x1);
-	FreeSurface(zoomS);
 	FreeSurface(back);
-	FreeSurface(screen);
-	scale=1;
-	anti_alias=0;
+	FreeSurface(sgb_buf);
+	back = NULL;
+	sgb_buf = NULL;
 }
 
 void
 vid_sgb_mask()
 {
-	switch (scale) {
-		case 1:
-			temp = sgb_1;
-			break;
-	}
-
-	if (temp==NULL)
-		while (1) ;
-
-	if (temp==sgb_1) {
+	/*if (temp==sgb_1) {
 		if (sgb_mask) {
 			//SDL_FillRect(back,NULL,0);
 		} else {
@@ -128,49 +113,18 @@ vid_sgb_mask()
 		} else {
 			//SDL_BlitSurface(sgb_buf_back, NULL, screen, NULL);
 		}
-	}
+	}*/
 }
-
-static unsigned int ticks = 0;
 
 void
 vid_frame_update()
 {
-	/*if (gboy_mode==SGB)
+	if (gboy_mode == SGB) {
 		vid_sgb_mask();
-
-	switch (scale) {
-		case 1:
-			temp = x1;
-			break;
 	}
-
-	if (temp==NULL)
-		while (1) ;
-	*/
-	/*SDL_Rect dstR;
-	SDL_Rect scrR;
-	dstR.x = gboy_mode==SGB ? 48 : 0;
-	dstR.y = gboy_mode==SGB ? 40 : 0;
-	dstR.x *= scale;
-	dstR.y *= scale;
-
-	scrR.w = back->w;
-	scrR.h = back->h;
-	scrR.x = 0;
-	scrR.y = 0;*/
 
 	vita2d_start_drawing();
 	vita2d_clear_screen();
-
-	if (temp==x1) {
-		//SDL_BlitSurface(back, &scrR, screen, &dstR);
-	} else {
-		//back1 = _zoomSurfaceRGBA(back, temp, 0, 0, anti_alias);
-		//scrR.w = back1->w;
-		//scrR.h = back1->h;
-		//SDL_BlitSurface(back1, &scrR, screen, &dstR);
-	}
 
 	vita2d_draw_texture_scale(back->tex, pos_x, pos_y, scale, scale);
 
@@ -188,24 +142,24 @@ vid_start()
 
 	/* Initialize Game Boy or Game Boy Color palette */
 	if (gboy_mode==DMG) {
-		pal_grey[0]=0xffffff;
-		pal_grey[1]=0x917d5e;
-		pal_grey[2]=0x635030;
-		pal_grey[3]=0x211a10;
+		pal_grey[0]=0xffffffff;
+		pal_grey[1]=0xff917d5e;
+		pal_grey[2]=0xff635030;
+		pal_grey[3]=0xff211a10;
 		gb_height=160;
 		gb_width=144;
 	} else if (gboy_mode==CGB) {
 		for (i = 0; i < 32768; i++) {
 			cur_col = (((i&0x1f)<<3)<<16) | ((((i>>5)&0x1f)<<3)<<8) | (((i>>10)&0x1f)<<3);
-			pal_color[i] = cur_col;
+			pal_color[i] = 0xff000000 | cur_col;
 		}
 		gb_height=160;
 		gb_width=144;
 	} else {
-		pal_grey[0]=0xffffff;
-		pal_grey[1]=0x917d5e;
-		pal_grey[2]=0x635030;
-		pal_grey[3]=0x211a10;
+		pal_grey[0]=0xffffffff;
+		pal_grey[1]=0xff917d5e;
+		pal_grey[2]=0xff635030;
+		pal_grey[3]=0xff211a10;
 		for (i = 0; i < 4; i++) {
 			pal_sgb[i][0]=pal_grey[0];
 			pal_sgb[i][1]=pal_grey[1];
@@ -218,7 +172,4 @@ vid_start()
 	}
 
 	back = CreateSurface(160, 146);
-	screen = CreateSurface(gb_height, gb_width);
-	x1 = CreateSurface(160, 144+2);
-	sgb_1 = CreateSurface(256, 224);
 }
