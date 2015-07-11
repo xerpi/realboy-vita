@@ -274,11 +274,10 @@ parse_cart_hdr()
 		j=j-cart_init_rd[i]-1;
 
 	/* Verify checksum */
-	printf("Checksum: ");
 	if ((Uint8)j != cart_init_rd[0x14d])
-		printf("Failed!\n");
+		printf("Checksum: Failed!\n");
 	else
-		printf("OK\n");
+		printf("Checksum: OK\n");
 }
 
 /*

@@ -55,7 +55,9 @@ int chdir(const char *path)
 		if (strstr(path, "cache0:/")) {
 			strcpy(current_dir, path);
 		} else {
-			sprintf(current_dir, "%s/%s", current_dir, path);
+			char new_path[1024];
+			sprintf(new_path, "%s/%s", current_dir, path);
+			strcpy(current_dir, new_path);
 		}
 	}
 	return 0;

@@ -29,7 +29,6 @@ int main()
 	char rom_path[PATH_MAX];
 
 	printf("\nRealBoy %s\n", "0.2.2");
-	init_conf();
 
 	strcpy(current_dir, "cache0:/VitaDefilerClient/Documents");
 
@@ -49,7 +48,7 @@ int main()
 			file_path = strndup(rom_path, 256);
 
 		if (rom_file != NULL)	{
-			//init_conf();
+			init_conf();
 			int ret_val; // value returned from emulation
 			/* Start Virtual Machine */
 			ret_val = start_vm();
