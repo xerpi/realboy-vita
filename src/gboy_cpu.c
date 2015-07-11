@@ -5636,8 +5636,12 @@ lcd_refrsh()
 					}
 					addr_sp[LCDS_REG] &= ~3;
 					addr_sp[LCDS_REG] |= 2;
-					if ( (proc_evts()) == 1)
+					if ( (proc_evts()) == 1) {
 						change_game();
+						/* If we want to change the game, we can
+						 * exit this funcion */
+						return;
+					}
 					if (!skip_next_frame)
 						vid_frame_update();
 					skip_next_frame = frame_skip();

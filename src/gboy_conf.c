@@ -32,7 +32,7 @@ apply_conf_defs()
 	vid_no_fullscreen();
 	use_boot_rom = 0;
 	gboy_mode = 0;
-	gboy_hw = DMG;
+	gboy_hw = AUTO;
 #else
 	joy_remap('d', 0);
 	joy_remap('s', 1);
