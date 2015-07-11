@@ -182,9 +182,6 @@ vid_start()
 	int flags, i;
 	unsigned int cur_col;
 
-	vita2d_init();
-	vita2d_set_clear_color(RGBA8(0x40, 0x40, 0x40, 0xFF));
-
 	flags = 0; // XXX
 
 	/* Initialize Game Boy or Game Boy Color palette */

@@ -87,14 +87,21 @@ char *getenv(const char *name)
  */
 int main()
 {
+	char rom_path[PATH_MAX];
+
 	printf("\nRealBoy %s\n", "0.2.2");
+
+	vita2d_init();
+	vita2d_set_clear_color(RGBA8(0x40, 0x40, 0x40, 0xFF));
+
+	file_choose("cache0:/VitaDefilerClient/Documents/", rom_path);
 
 	vid_scale(3);
 	vid_toggle_fullscreen();
 	use_boot_rom = 0;
 
-	if ( (rom_file=fopen("cache0:/VitaDefilerClient/Documents/rom.gb", "r")) == NULL)
-		printf("\nError: rom_file: %p\n", rom_file);
+	if ( (rom_file = fopen(rom_path, "r")) == NULL)
+		printf("\nError opening %s\n", rom_path);
 	else
 		file_path = strndup("cache0:/VitaDefilerClient/Documents", 256);
 
@@ -110,6 +117,8 @@ int main()
 		else
 			printf("\nThank you for using RealBoy!\n\n");
 	}
+
+	vita2d_fini();
 
 	sceKernelExitProcess(0);
 	return 0;

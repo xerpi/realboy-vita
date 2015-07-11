@@ -22,6 +22,8 @@
 
 #ifdef VITA
 
+#include <sys/syslimits.h>
+
 #include <psp2/types.h>
 #include <psp2/ctrl.h>
 #include <psp2/display.h>
