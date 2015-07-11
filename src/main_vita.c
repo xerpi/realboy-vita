@@ -94,28 +94,28 @@ int main()
 	vita2d_init();
 	vita2d_set_clear_color(RGBA8(0x40, 0x40, 0x40, 0xFF));
 
-	file_choose("cache0:/VitaDefilerClient/Documents/", rom_path);
+	while (1) {
+		file_choose("cache0:/VitaDefilerClient/Documents/", rom_path);
 
-	vid_scale(3);
-	vid_toggle_fullscreen();
-	use_boot_rom = 0;
+		vid_scale(3);
+		vid_toggle_fullscreen();
+		use_boot_rom = 0;
 
-	if ( (rom_file = fopen(rom_path, "r")) == NULL)
-		printf("\nError opening %s\n", rom_path);
-	else
-		file_path = strndup("cache0:/VitaDefilerClient/Documents", 256);
-
-
-	if (rom_file != NULL)	{
-		//init_conf();
-		int ret_val; // value returned from emulation
-		/* Start Virtual Machine */
-		ret_val = start_vm();
-		/* Error returned if file not valid */
-		if (ret_val == -1)
-			printf("File not a gb binary\n\n");
+		if ( (rom_file = fopen(rom_path, "r")) == NULL)
+			printf("\nError opening %s\n", rom_path);
 		else
-			printf("\nThank you for using RealBoy!\n\n");
+			file_path = strndup("cache0:/VitaDefilerClient/Documents", 256);
+
+		if (rom_file != NULL)	{
+			//init_conf();
+			int ret_val; // value returned from emulation
+			/* Start Virtual Machine */
+			ret_val = start_vm();
+			/* Error returned if file not valid */
+			if (ret_val == -1) {
+				printf("File %s not a gb binary\n\n", rom_path);
+			}
+		}
 	}
 
 	vita2d_fini();

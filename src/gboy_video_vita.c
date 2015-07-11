@@ -37,8 +37,10 @@ static Surface *CreateSurface(int width, int height)
 
 static void FreeSurface(Surface *surface)
 {
-	vita2d_free_texture(surface->tex);
-	free(surface);
+	if (surface) {
+		vita2d_free_texture(surface->tex);
+		free(surface);
+	}
 }
 
 void

@@ -22,6 +22,8 @@
 long key_bitmap = 0;
 static SceCtrlData pad;
 
+#define CHANGE_GAME_MASK (PSP2_CTRL_TRIANGLE | PSP2_CTRL_LTRIGGER)
+
 static const struct {
 	int vita, gb;
 } key_map[] = {
@@ -35,17 +37,20 @@ static const struct {
 	{PSP2_CTRL_RIGHT,  RIGHT_MASK},
 };
 
-int
-joy_remap(char key_ascii, int key_remap)
+int joy_remap(char key_ascii, int key_remap)
 {
 	return 0;
 }
 
-long
-proc_evts()
+// Returning 1 means change game
+long proc_evts()
 {
 	int i;
 	sceCtrlPeekBufferPositive(0, &pad, 1);
+
+	if ((pad.buttons & CHANGE_GAME_MASK) == CHANGE_GAME_MASK) {
+		return 1;
+	}
 
 	key_bitmap = 0;
 
