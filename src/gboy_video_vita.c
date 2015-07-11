@@ -218,13 +218,7 @@ vid_start()
 	}
 
 	back = CreateSurface(160, 146);
-
-	switch (scale) {
-			case 1:
-				screen = CreateSurface(gb_height, gb_width);
-				break;
-	}
-
+	screen = CreateSurface(gb_height, gb_width);
 	x1 = CreateSurface(160, 144+2);
 	sgb_1 = CreateSurface(256, 224);
 }

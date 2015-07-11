@@ -24,9 +24,14 @@ create_save(char *file_str)
 	FILE *file_ptr;
 
 	chdir("saves");
-
+#ifdef VITA
+	char path[1024];
+	sprintf(path, "%s/%s", current_dir, file_str);
+	file_ptr = fopen(path, "w+");
+#else
 	/* Create file and open it */
 	file_ptr = fopen(file_str, "w+");
+#endif
 
 	chdir("..");
 
@@ -40,8 +45,14 @@ open_save_try(char *file_str)
 
 	chdir("saves");
 
+#ifdef VITA
+	char path[1024];
+	sprintf(path, "%s/%s", current_dir, file_str);
+	file_ptr = fopen(path, "r+");
+#else
 	/* Try to open file */
 	file_ptr = fopen(file_str, "r+");
+#endif
 
 	chdir("..");
 
@@ -63,8 +74,15 @@ get_file_size(FILE *file)
 void
 create_dir(char *dir_name, Uint32 mode_mask)
 {
+#ifdef VITA
+	char path[1024];
+	sprintf(path, "%s/%s", current_dir, dir_name);
+	if ( (mkdir(path, (mode_t)mode_mask)) == -1)
+		perror("Create Directory: ");
+#else
 	if ( (mkdir(dir_name, (mode_t)mode_mask)) == -1)
 		perror("Create Directory: ");
+#endif
 }
 
 void
@@ -94,6 +112,9 @@ search_file_dir(char *file, char *dir_path)
 	char buffer[512];
 	SceUID dir;
 	SceIoDirent dirent;
+
+	if (strcmp(dir_path, ".") == 0)
+		dir_path = current_dir;
 
 	dir = sceIoDopen(dir_path);
 	if (dir < 0) {

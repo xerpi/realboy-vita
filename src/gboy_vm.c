@@ -333,6 +333,7 @@ alloc_addr_sp()
 	if (gb_cart.cart_ram_size)
 	{
 		base_name = basename(file_path);
+
 		save_name = (char *)malloc(strnlen(base_name, 255)+4);
 
 		strncpy(save_name, base_name, strnlen(base_name, 255));
@@ -408,7 +409,6 @@ start_vm()
 
 	/* Get information from cartridge's header */
 	parse_cart_hdr();
-
 	/* Select final emulation mode according to user settings and modes supported by cartridge */
 	sel_emu_mode();
 

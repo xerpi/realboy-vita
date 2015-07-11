@@ -43,12 +43,7 @@
 extern Uint32 pal_sgb[4][4]; // 32-bit palette for Super Game Boy
 extern Uint8 sgb_pal_map[20][18];
 #ifdef VITA
-
-struct {
-	void *pixels;
-	int pitch;
-} *sgb_buf;
-
+extern Surface *sgb_buf;
 #else
 extern SDL_Surface *sgb_buf;
 #endif

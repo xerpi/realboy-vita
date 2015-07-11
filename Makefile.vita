@@ -10,7 +10,7 @@ OBJS   = src/gboy_cpu.o src/gboy_mem.o src/gboy_sgb.o src/gboy_conf.o \
 	src/gboy_mbc2.o src/gboy_mbc3.o src/gboy_mbc5.o src/gboy_mbc.o \
 	src/gboy_sound_vita.o src/gboy_video_vita.o src/gboy_parse.o \
 	src/globals.o src/gboy_file.o src/main_vita.o src/file_chooser.o \
-	src/font.o src/font_data.o
+	src/font.o src/font_data.o src/utils.o
 
 LIBS = -lvita2d -lm -lc_stub -lSceKernel_stub -lSceDisplay_stub -lSceGxm_stub	\
 	-lSceCtrl_stub -lSceRtc_stub

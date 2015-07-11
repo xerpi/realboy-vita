@@ -21,67 +21,6 @@
 
 PSP2_MODULE_INFO(0, 0, "realboy");
 
-/* libc functions */
-
-static char current_dir[1024];
-
-size_t strnlen(register const char *s, size_t maxlen)
-{
-	register const char *e;
-	size_t n;
-
-	for (e = s, n = 0; *e && n < maxlen; e++, n++)
-		;
-	return n;
-}
-
-char *strndup(const char *s, size_t n)
-{
-	char *result;
-	size_t len = strlen (s);
-
-	if (n < len)
-		len = n;
-
-	result = (char *) malloc (len + 1);
-	if (!result)
-		return 0;
-
-	result[len] = '\0';
-	return (char *) memcpy (result, s, len);
-}
-
-char *basename(const char *name)
-{
-	const char *base = name;
-
-	while (*name) {
-		if (*name++ == '/') {
-			base = name;
-		}
-	}
-	return (char *) base;
-}
-
-int chdir(const char *path)
-{
-	strcpy(current_dir, path);
-	return 0;
-}
-
-int mkdir(const char *pathname, mode_t mode)
-{
-	return sceIoMkdir(pathname, mode);
-}
-
-char *getenv(const char *name)
-{
-	if (strcmp(name, "HOME") == 0) {
-		return "cache0:/VitaDefilerClient/Documents";
-	}
-	return NULL;
-}
-
 /*
  * Main function.
  */
@@ -90,12 +29,15 @@ int main()
 	char rom_path[PATH_MAX];
 
 	printf("\nRealBoy %s\n", "0.2.2");
+	init_conf();
+
+	strcpy(current_dir, "cache0:/VitaDefilerClient/Documents");
 
 	vita2d_init();
 	vita2d_set_clear_color(RGBA8(0x40, 0x40, 0x40, 0xFF));
 
 	while (1) {
-		file_choose("cache0:/VitaDefilerClient/Documents/", rom_path);
+		file_choose("cache0:/VitaDefilerClient/Documents", rom_path);
 
 		vid_scale(3);
 		vid_toggle_fullscreen();
@@ -104,7 +46,7 @@ int main()
 		if ( (rom_file = fopen(rom_path, "r")) == NULL)
 			printf("\nError opening %s\n", rom_path);
 		else
-			file_path = strndup("cache0:/VitaDefilerClient/Documents", 256);
+			file_path = strndup(rom_path, 256);
 
 		if (rom_file != NULL)	{
 			//init_conf();

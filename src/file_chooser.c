@@ -158,14 +158,14 @@ int file_choose(const char *start_path, char *chosen_file)
 					dir_up(cur_path);
 				} else {
 					char new_path[PATH_MAX];
-					sprintf(new_path, "%s%s/", cur_path, entry->name);
+					sprintf(new_path, "%s/%s", cur_path, entry->name);
 					strcpy(cur_path, new_path);
 				}
 				file_list_empty(&list);
 				file_list_build(cur_path, &list);
 				selected = 0;
 			} else {
-				sprintf(chosen_file, "%s%s", cur_path, entry->name);
+				sprintf(chosen_file, "%s/%s", cur_path, entry->name);
 				file_list_empty(&list);
 				return 1;
 			}

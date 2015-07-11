@@ -37,6 +37,8 @@
 
 #include <vita2d.h>
 
+#include "utils.h"
+
 typedef uint8_t Uint8;
 typedef uint16_t Uint16;
 typedef uint32_t Uint32;
@@ -56,6 +58,7 @@ typedef struct {
 
 #define SCREEN_W 960
 #define SCREEN_H 544
+
 
 #else
 #include <ctype.h>

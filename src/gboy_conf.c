@@ -214,9 +214,15 @@ apply_conf()
 {
 	long file_size;
 	char *conf_str;
-
+#ifdef VITA
+	char conf_file_path[512];
+	sprintf(conf_file_path, "%s/%s", current_dir, "RealBoy.conf");
+	if ( (file_conf = fopen(conf_file_path, "r+")) == NULL)
+		perror("fopen()");
+#else
 	if ( (file_conf = fopen("RealBoy.conf", "r+")) == NULL)
 		perror("fopen()");
+#endif
 	file_size = get_file_size(file_conf);
 
 	if ( (conf_str = malloc(file_size+1)) == NULL)
@@ -251,6 +257,12 @@ ignore_conf(long ign_opt)
 	}
 }
 
+#ifdef VITA
+#  define CONF_DIR_NAME "realboy"
+#else
+#  define CONF_DIR_NAME ".realboy"
+#endif
+
 void
 init_conf()
 {
@@ -262,18 +274,18 @@ init_conf()
 
 	/* Search for configuration directory */
 	int found_file;
-	found_file = search_file_dir(".realboy", home_path);
+	found_file = search_file_dir(CONF_DIR_NAME, home_path);
 
 	/* Create configuration directory if it doesn't exist */
 	if (!found_file) {
 		printf("\n**********************************\n");
 		printf("Configuration Directory not found...\n");
-		create_dir(".realboy", 0755);
-		printf("Configuration Directory Created %s%s\n", home_path, "/.realboy");
+		create_dir(CONF_DIR_NAME, 0755);
+		printf("Configuration Directory Created %s/%s\n", home_path, CONF_DIR_NAME);
 	}
 	else
-		printf("\n\nFound Configuration Directory %s%s\n", home_path, "/.realboy");
-	change_cur_dir(".realboy");
+		printf("\n\nFound Configuration Directory %s/%s\n", home_path, CONF_DIR_NAME);
+	change_cur_dir(CONF_DIR_NAME);
 
 	/* Search for saves directory */
 	found_file = search_file_dir("saves", ".");
@@ -281,26 +293,33 @@ init_conf()
 	if (!found_file) {
 		printf("Saves Directory not found...\n");
 		create_dir("saves", 0755);
-		printf("Saves Directory Created %s%s\n", home_path, "/.realboy/saves");
+		printf("Saves Directory Created %s/%s\n", home_path, CONF_DIR_NAME"/saves");
 	}
 	else
-		printf("Found Saves Directory %s%s\n", home_path, "/.realboy/saves");
+		printf("Found Saves Directory %s/%s\n", home_path, CONF_DIR_NAME"/saves");
 
 	/* Search for configuration file */
 	found_file = search_file_dir("RealBoy.conf", ".");
 	/* Create default configuration file if it doesn't exist */
 	if (!found_file) {
 		printf("Configuration File not found...\n");
+#ifdef VITA
+		char conf_file_path[512];
+		sprintf(conf_file_path, "%s/%s", current_dir, "RealBoy.conf");
+		if ( (file_conf = fopen(conf_file_path, "w+")) == NULL)
+			perror("fopen()");
+#else
 		if ( (file_conf = fopen("RealBoy.conf", "w+")) == NULL)
 			perror("fopen()");
-		printf("Configuration File Created %s%s\n", home_path, "/.realboy/RealBoy.conf");
+#endif
+		printf("Configuration File Created %s/%s\n", home_path, CONF_DIR_NAME"/RealBoy.conf");
 		if ( (fwrite(default_conf, 1, strnlen(default_conf, 1000), file_conf)) == 0)
 			perror("fwrite()");
 		printf("**********************************\n");
 		apply_conf_defs();
 	}
 	else {
-		printf("Found Configuration File %s%s\n", home_path, "/.realboy/RealBoy.conf");
+		printf("Found Configuration File %s/%s\n", home_path, CONF_DIR_NAME"/RealBoy.conf");
 		printf("Applying Configuration...\n");
 		apply_conf();
 	}
