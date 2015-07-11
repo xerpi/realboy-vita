@@ -16,21 +16,44 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifdef VITA
-#  include "gboy.h"
-#else
-#  include <SDL/SDL.h>
-#endif
+#include "gboy.h"
+#include "gboy_events_vita.h"
 
-#define MAX_STRS 8
+long key_bitmap = 0;
+static SceCtrlData pad;
 
-/* Misc globals */
-char inp_buf[512];
-char *cmd_ptrs[MAX_STRS+2];
-FILE *boot_file=NULL;
-FILE *rom_file=NULL;
-char *home_path=NULL;
-char *file_path=NULL;
-Uint8 addr_sp[0x10000];
-long chg_gam=0;
-long addr_sp_ptrs[16] = { 0 };
+static const struct {
+	int vita, gb;
+} key_map[] = {
+	{PSP2_CTRL_CROSS,  D_MASK},
+	{PSP2_CTRL_CIRCLE, S_MASK},
+	{PSP2_CTRL_SELECT, A_MASK},
+	{PSP2_CTRL_START,  RET_MASK},
+	{PSP2_CTRL_UP,     UP_MASK},
+	{PSP2_CTRL_DOWN,   DOWN_MASK},
+	{PSP2_CTRL_LEFT,   LEFT_MASK},
+	{PSP2_CTRL_RIGHT,  RIGHT_MASK},
+};
+
+int
+joy_remap(char key_ascii, int key_remap)
+{
+	return 0;
+}
+
+long
+proc_evts()
+{
+	int i;
+	sceCtrlPeekBufferPositive(0, &pad, 1);
+
+	key_bitmap = 0;
+
+	for (i = 0; i < sizeof(key_map)/sizeof(*key_map); i++) {
+		if (pad.buttons & key_map[i].vita) {
+			key_bitmap |= key_map[i].gb;
+		}
+	}
+
+	return 0;
+}

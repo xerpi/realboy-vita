@@ -1,9 +1,9 @@
 /* RealBoy Emulator: Free, Fast, Yet Accurate, Game Boy/Game Boy Color Emulator.
  * Copyright (C) 2013 Sergio Andrés Gómez del Real
  *
- * This program is free software; you can redistribute it and/or modify  
- * it under the terms of the GNU General Public License as published by   
- * the Free Software Foundation; either version 2 of the License, or    
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include "gboy.h"
@@ -34,7 +34,7 @@ ld_boot()
 		perror("Error open\n");
 		return -1;
 	}
-	
+
 	/* Read to address space XXX */
 	if (gboy_mode==1)
 		fread(addr_sp, 1, 0x8ff, boot_file);
@@ -132,7 +132,7 @@ gboy_setup()
 	regs_sets.regs[SP].UWord = 0xfffe;
 	regs_sets.regs[PC].UWord = 0x0100;
 #endif
-  
+
 	/* Clear memory range: IO registers and high RAM */
 	for (i=0xff00; i<0xffff; i++)
 	  addr_sp[i] = 0;
@@ -250,7 +250,7 @@ parse_cart_hdr()
 		gb_cart.cart_sgb=1;
 		printf("SGB Support\n");
 	}
-	
+
 	/* Copy type, ROM size and RAM size */
 	gb_cart.cart_type = cart_init_rd[CAR_TYP];
 	gb_cart.cart_rom_size = cart_init_rd[ROM_SIZ];
@@ -328,9 +328,9 @@ alloc_addr_sp()
 		gb_cart.cart_vram_bank=NULL;
 		gb_cart.cart_wram_bank=NULL;
 	}
-	
+
 	/* If we have external RAM */
-	if (gb_cart.cart_ram_size) 
+	if (gb_cart.cart_ram_size)
 	{
 		base_name = basename(file_path);
 		save_name = (char *)malloc(strnlen(base_name, 255)+4);
@@ -346,13 +346,13 @@ alloc_addr_sp()
 		 *
 		 * However, extensions such as ".gbc" are not necessary; it is
 		 * possible to execute a ROM with filename "FooBar". In this case,
-		 * no '.' character will be found, and the ".sav" string will just 
+		 * no '.' character will be found, and the ".sav" string will just
 		 * be appended to the filename, (FooBar.sav).
 		 */
 		for (i=0; save_name[i] != '.' && save_name[i] != '\0'; i++)
 			;
 
-		/* 
+		/*
 		 * If a '.' character was found, most likely the ROM's filename
 		 * is something like "Foo.gb" or "Foo.gbc".
 		 * Note that it is possible as well to have a filename "Foo.Bar.Bob",
@@ -360,7 +360,7 @@ alloc_addr_sp()
 		 */
 		if (save_name[i] == '.')
 			i++;
-		/* 
+		/*
 		 * If a '.' character was NOT found, we are at the NULL character (end of string).
 		 * We have enough space to append ".sav" to the string.
 		 */
@@ -412,8 +412,8 @@ start_vm()
 	/* Select final emulation mode according to user settings and modes supported by cartridge */
 	sel_emu_mode();
 
-	/* 
-	 * If valid ROM (XXX this doesn't actually test for the validity of a ROM; 
+	/*
+	 * If valid ROM (XXX this doesn't actually test for the validity of a ROM;
 	 * this is done through checksuming)
 	 */
 	if (file_logo_size==LOG_SIZ)
@@ -432,7 +432,7 @@ start_vm()
 		//gb_hw_reset();
 		/* Load boot rom */
 		if (use_boot_rom) {
-			/* If error loading boot ROM, just fallback to boot without it */	
+			/* If error loading boot ROM, just fallback to boot without it */
 			if (ld_boot() == -1) {
 				gboy_setup();
 				rewind(rom_file);
@@ -483,8 +483,10 @@ start_vm()
 	fclose(rom_file);
 	vid_reset();
 	snd_reset();
+#ifndef VITA
 	gddb_reset();
 	SDL_Quit();
+#endif
 
 	return 0;
 }

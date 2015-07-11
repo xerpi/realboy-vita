@@ -2,9 +2,9 @@
  * Copyright (C) 2001 Peponas Thomas & Peponas Mathieu
  * Copyright (C) 2013 Sergio Andrés Gómez del Real
  *
- * This program is free software; you can redistribute it and/or modify  
- * it under the terms of the GNU General Public License as published by   
- * the Free Software Foundation; either version 2 of the License, or    
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 #ifdef USE_X86_64_ASM
 extern long cpu_cur_mode;
@@ -63,7 +63,11 @@ long gb_vram_clks[2] = { 176, 176 };
 
 /* Imported/External variables. Defined in gboy_video.c */
 extern Uint32 gboy_mode; // Game Boy/Color Game Boy mode
+#ifdef VITA
+extern Surface *back;
+#else
 extern SDL_Surface *back;
+#endif
 extern Uint32 pal_sgb[4][4]; // 32-bit palette for Super Game Boy
 extern Uint32 pal_grey[4]; // 32-bit palette for monochrome Game Boy
 extern Uint32 pal_color[32*32*32]; // 32-bit palette for Color Game Boy

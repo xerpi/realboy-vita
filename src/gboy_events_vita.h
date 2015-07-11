@@ -16,21 +16,4 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifdef VITA
-#  include "gboy.h"
-#else
-#  include <SDL/SDL.h>
-#endif
-
-#define MAX_STRS 8
-
-/* Misc globals */
-char inp_buf[512];
-char *cmd_ptrs[MAX_STRS+2];
-FILE *boot_file=NULL;
-FILE *rom_file=NULL;
-char *home_path=NULL;
-char *file_path=NULL;
-Uint8 addr_sp[0x10000];
-long chg_gam=0;
-long addr_sp_ptrs[16] = { 0 };
+extern long joy_event();

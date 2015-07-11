@@ -1,9 +1,9 @@
 /* RealBoy Emulator: Free, Fast, Yet Accurate, Game Boy/Game Boy Color Emulator.
  * Copyright (C) 2013 Sergio Andrés Gómez del Real
  *
- * This program is free software; you can redistribute it and/or modify  
- * it under the terms of the GNU General Public License as published by   
- * the Free Software Foundation; either version 2 of the License, or    
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include "gboy.h"
@@ -40,14 +40,59 @@ set_fps(int fps)
 void
 frame_reset()
 {
+#ifdef VITA
+
+#else
 	base.tv_sec=0;
 	base.tv_usec=0;
+#endif
 }
 
 int
 frame_skip()
 {
-	static int frame_rate_cnt=FRAME_RATE;
+	static int frame_rate_cnt = FRAME_RATE;
+
+#ifdef VITA
+
+	if (u_base == 0) {
+		u_base = sceKernelGetProcessTimeWide();
+		return 0;
+	}
+
+	u_base+=u_frm;
+
+	if (num_skips>=10)
+	{
+		num_skips=0;
+		frame_reset();
+		return 1;
+	}
+
+	if (num_skips) {
+		num_skips--;
+		return 1;
+	}
+
+	u_ref = sceKernelGetProcessTimeWide();
+
+	/* If not there yet */
+	if (u_ref<u_base)
+	{
+		sceKernelDelayThread((u_base-u_ref));
+		if ((frame_rate_cnt-=frames_per_second)<=0)
+		{
+			frame_rate_cnt+=FRAME_RATE;
+			return 0;
+		}
+		else
+			return 1;
+	}
+	else {
+		num_skips=(u_ref-u_base)/u_frm;
+		return 0;
+	}
+#else
 
 	if (base.tv_sec==0)
 	{
@@ -89,4 +134,5 @@ frame_skip()
 		num_skips=(u_ref-u_base)/u_frm;
 		return 0;
 	}
+#endif
 }

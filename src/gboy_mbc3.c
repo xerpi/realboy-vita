@@ -3,9 +3,9 @@
  * Copyright (C) 2004 Forgotten and the VBA development team
  * Copyright (C) 2013 Sergio Andrés Gómez del Real
  *
- * This program is free software; you can redistribute it and/or modify  
- * it under the terms of the GNU General Public License as published by   
- * the Free Software Foundation; either version 2 of the License, or    
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 /*
@@ -75,7 +75,7 @@ mbc3_latch_rtc()
     }
   }
   gb_mbc.mbc_rtc_last = now;
-	
+
 }
 
 /*
@@ -86,6 +86,17 @@ static void
 mbc3_1st_rtc()
 {
 	gb_mbc.mbc_rtc_last = time(NULL);
+
+#ifdef VITA
+	SceRtcTime loc_tim;
+	sceRtcGetCurrentClockLocalTime(&loc_tim);
+
+	gb_mbc.mbc_rtc_regs[0] = loc_tim.seconds;
+	gb_mbc.mbc_rtc_regs[1] = loc_tim.minutes;
+	gb_mbc.mbc_rtc_regs[2] = loc_tim.hour;
+	gb_mbc.mbc_rtc_regs[3] = loc_tim.day & 255;
+	gb_mbc.mbc_rtc_regs[4] = (gb_mbc.mbc_rtc_regs[4] & 0xfe) | (loc_tim.day>255 ? 1 : 0);
+#else
 	struct tm *loc_tim = localtime(&gb_mbc.mbc_rtc_last);
 
 	gb_mbc.mbc_rtc_regs[0] = loc_tim->tm_sec;
@@ -93,6 +104,7 @@ mbc3_1st_rtc()
 	gb_mbc.mbc_rtc_regs[2] = loc_tim->tm_hour;
 	gb_mbc.mbc_rtc_regs[3] = loc_tim->tm_yday & 255;
 	gb_mbc.mbc_rtc_regs[4] = (gb_mbc.mbc_rtc_regs[4] & 0xfe) | (loc_tim->tm_yday>255 ? 1 : 0);
+#endif
 }
 
 void
@@ -155,7 +167,7 @@ mbc3_ramrtc_bank(int val)
 	if (val >= 8)
 		gb_mbc.mbc_rtc_reg_sel = val&0x0f;
 	else {
-		gb_mbc.mbc_rtc_reg_sel = (char)0; 
+		gb_mbc.mbc_rtc_reg_sel = (char)0;
 		gb_cart.cart_curam_bank = val;
 	}
 

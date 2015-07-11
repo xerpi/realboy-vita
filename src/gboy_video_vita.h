@@ -15,22 +15,30 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+/* Locally-global variables */
+static Surface *back1;
+static Surface *temp=NULL;
 
-#ifdef VITA
-#  include "gboy.h"
-#else
-#  include <SDL/SDL.h>
-#endif
+/* Global/Exported variables */
+Uint32 pal_sgb[4][4]; // 32-bit palette for Super Game Boy
+Uint32 pal_grey[4]; // 32-bit palette for monochrome Game Boy
+Uint32 pal_color[32*32*32]; // 32-bit palette for Color Game Boy
+Uint32 gb_height;
+Uint32 gb_width;
+Uint32 scale=1;
+Uint32 anti_alias=0;
+Surface *screen;
+Surface *back;
+Surface *sgb_buf;
+Surface *sgb_buf_back;
+Surface *zoomS;
+Surface *x1;
+Surface *sgb_1;
+Uint32 fullscreen;
 
-#define MAX_STRS 8
+/* Imported/External variables */
+extern Uint32 gboy_mode; // Game Boy/Color Game Boy mode
+extern Surface *_zoomSurfaceRGBA(Surface *, Surface *, int, int, int);
+extern Surface *back;
+extern long sgb_mask;
 
-/* Misc globals */
-char inp_buf[512];
-char *cmd_ptrs[MAX_STRS+2];
-FILE *boot_file=NULL;
-FILE *rom_file=NULL;
-char *home_path=NULL;
-char *file_path=NULL;
-Uint8 addr_sp[0x10000];
-long chg_gam=0;
-long addr_sp_ptrs[16] = { 0 };

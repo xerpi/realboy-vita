@@ -1,9 +1,9 @@
 /* RealBoy Emulator: Free, Fast, Yet Accurate, Game Boy/Game Boy Color Emulator.
  * Copyright (C) 2013 Sergio Andrés Gómez del Real
  *
- * This program is free software; you can redistribute it and/or modify  
- * it under the terms of the GNU General Public License as published by   
- * the Free Software Foundation; either version 2 of the License, or    
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 /* Misc */
 #define NULLZ 0
@@ -119,8 +119,8 @@ extern int frame_skip();
 extern void render_scanline(long);
 extern void gddb_main(int, Uint8 *, Uint8 *);
 
-/* 
- * Instruction format: 
+/*
+ * Instruction format:
  * opcode, dest addr, dest, src addr, src, unit
  */
 struct z80_set {
@@ -136,5 +136,5 @@ struct regs_sets {
 		Sint8 SByte[2];
 		Uint16 UWord;
 		Sint16 SWord;
-	} regs[10];
+	} regs[11];
 } regs_sets;

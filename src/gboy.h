@@ -1,9 +1,9 @@
 /* RealBoy Emulator: Free, Fast, Yet Accurate, Game Boy/Game Boy Color Emulator.
  * Copyright (C) 2013 Sergio Andrés Gómez del Real
  *
- * This program is free software; you can redistribute it and/or modify  
- * it under the terms of the GNU General Public License as published by   
- * the Free Software Foundation; either version 2 of the License, or    
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -13,26 +13,64 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#ifdef VITA
+
+#include <psp2/types.h>
+#include <psp2/ctrl.h>
+#include <psp2/display.h>
+#include <psp2/gxm.h>
+#include <psp2/rtc.h>
+#include <psp2/moduleinfo.h>
+#include <psp2/kernel/processmgr.h>
+
+#include <psp2/io/fcntl.h>
+#include <psp2/io/dirent.h>
+
+#include <vita2d.h>
+
+typedef uint8_t Uint8;
+typedef uint16_t Uint16;
+typedef uint32_t Uint32;
+typedef uint64_t Uint64;
+
+typedef int8_t Sint8;
+typedef int16_t Sint16;
+typedef int32_t Sint32;
+typedef int64_t Sint64;
+
+typedef struct {
+	vita2d_texture *tex;
+	void *pixels;
+	int x, y, w, h;
+	int pitch;
+} Surface;
+
+#define SCREEN_W 960
+#define SCREEN_H 544
+
+#else
 #include <ctype.h>
 #include <libgen.h>
 #include <time.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/uio.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <string.h>
 #include <fcntl.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <dirent.h>
 #include <SDL/SDL.h>
 #include <termios.h>
+#include <sys/uio.h>
+#endif
 
 /* Memory-mapped IO addresses */
 #define JOY_REG 0xff00 // address for joypad register
@@ -175,10 +213,10 @@ struct gb_cart {
 	FILE *cart_rtc_fd; // MBC3's Real Time Clock
 } gb_cart;
 
-/* 
+/*
  * Information about the cartridge's MBC chip.
  * Do not change unless you know what you're doing;
- * assembly code use this structure, and thus is sensible 
+ * assembly code use this structure, and thus is sensible
  * to compiler-generated padding. Also, there is code casting
  * some of these values to pointers, for address manipulation.
  * Be careful if adding, removing or changing order of elements.
@@ -194,7 +232,7 @@ struct gb_mbc {
 	char mbc_rtc_reg_sel;
 } gb_mbc;
 
-/* 
+/*
  * Structures used by the commmand-line interpreter.
  */
 /* Doubly-linked list of commands already executed */

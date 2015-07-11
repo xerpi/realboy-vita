@@ -1,9 +1,9 @@
 /* RealBoy Emulator: Free, Fast, Yet Accurate, Game Boy/Game Boy Color Emulator.
  * Copyright (C) 2013 Sergio Andrés Gómez del Real
  *
- * This program is free software; you can redistribute it and/or modify  
- * it under the terms of the GNU General Public License as published by   
- * the Free Software Foundation; either version 2 of the License, or    
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -13,14 +13,14 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 /*  gngb, a game boy color emulator
  *  Copyright (C) 2001 Peponas Thomas & Peponas Mathieu
- * 
- *  This program is free software; you can redistribute it and/or modify  
- *  it under the terms of the GNU General Public License as published by   
- *  the Free Software Foundation; either version 2 of the License, or    
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
  *  (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -30,7 +30,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 #define SGB_PACK_SIZE 16
 #define SGB_MAX_PACK 7
@@ -42,7 +42,16 @@
 
 extern Uint32 pal_sgb[4][4]; // 32-bit palette for Super Game Boy
 extern Uint8 sgb_pal_map[20][18];
+#ifdef VITA
+
+struct {
+	void *pixels;
+	int pitch;
+} *sgb_buf;
+
+#else
 extern SDL_Surface *sgb_buf;
+#endif
 
 struct mask_shift {
   unsigned char mask;

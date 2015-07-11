@@ -1,9 +1,9 @@
 /* RealBoy Emulator: Free, Fast, Yet Accurate, Game Boy/Game Boy Color Emulator.
  * Copyright (C) 2013 Sergio Andrés Gómez del Real
  *
- * This program is free software; you can redistribute it and/or modify  
- * it under the terms of the GNU General Public License as published by   
- * the Free Software Foundation; either version 2 of the License, or    
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include "gboy.h"
@@ -89,6 +89,29 @@ get_home_path()
 int
 search_file_dir(char *file, char *dir_path)
 {
+#ifdef VITA
+	int found = 0;
+	char buffer[512];
+	SceUID dir;
+	SceIoDirent dirent;
+
+	dir = sceIoDopen(dir_path);
+	if (dir < 0) {
+		return 0;
+	}
+	memset(&dirent, 0, sizeof(dirent));
+
+	while (sceIoDread(dir, &dirent) > 0) {
+		if (!(strncmp(dirent.d_name, file, 9))) {
+			found = 1;
+			break;
+		}
+	}
+
+	sceIoDclose(dir);
+
+	return found;
+#else
 	DIR *home_dir = opendir(dir_path);
 	struct dirent *dir_ent;
 	while ( (dir_ent=readdir(home_dir)) != NULL) {
@@ -101,4 +124,5 @@ search_file_dir(char *file, char *dir_path)
 		return 1;
 	else
 		return 0;
+#endif
 }
