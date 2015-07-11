@@ -126,7 +126,12 @@ vid_frame_update()
 	vita2d_start_drawing();
 	vita2d_clear_screen();
 
-	vita2d_draw_texture_scale(back->tex, pos_x, pos_y, scale, scale);
+	vita2d_draw_texture_part_scale(back->tex,
+		pos_x, pos_y,
+		0, 0,
+		/* w and h are swapped */
+		gb_height, gb_width,
+		scale, scale);
 
 	vita2d_end_drawing();
 	vita2d_swap_buffers();
