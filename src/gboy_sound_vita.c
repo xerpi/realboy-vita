@@ -21,12 +21,15 @@
 #include "gboy_sound_vita.h"
 #include "vita_audio.h"
 
+#define FREQ 48000
+#define SAMPLE_COUNT 2048
+
 void
 sound_update()
 {
 
 	Sint32 i;
-	samples = samp_cnt*desired.samples;
+	samples = samp_cnt*SAMPLE_COUNT;
 
 	while (1)
 	{
@@ -273,9 +276,6 @@ read_sound_reg()
 void
 write_sound_reg(Uint8 reg, Uint8 val)
 {
-
-	//SDL_LockAudio();
-
 	switch (reg) {
 		case 0x10:
 			sqwave[0].swp=(val&0x70)>>4;
@@ -438,46 +438,13 @@ write_sound_reg(Uint8 reg, Uint8 val)
 		default:
 			addr_sp[reg+0xff00]=val;
 	}
-
-	//SDL_UnlockAudio();
 }
-void
-update_stream(void *userdata,Uint8 *stream,int snd_len)
-{
-
-		while (buf_full==0) {
-			//if (snd_ticks>=samp_cnt)
-				sound_update();
-			//else
-			//	break;
-		}
-		buf_full=0;
-		memcpy(stream, playbuf, snd_len);
-		memset(playbuf, 0, snd_len);
-}
-
 
 void AudioCallback(void *buffer, unsigned int *length, void *userdata)
 {
-	PspMonoSample *OutBuf = (PspMonoSample*)buffer;
+	PspStereoSample *OutBuf = (PspStereoSample*)buffer;
 	int i;
-	int len = *length >> 1;
-
-	/*if(((int)lynx->gAudioBufferPointer >= len)
-		&& (lynx->gAudioBufferPointer != 0) && (!lynx->gSystemHalt) ) {
-		for (i = 0; i < len; i++) {
-			short sample = (short)(((int)lynx->gAudioBuffer[i] << 8) - 32768);
-			(OutBuf++)->Channel = sample;
-			(OutBuf++)->Channel = sample;
-		}
-		lynx->gAudioBufferPointer = 0;
-	} else {
-		*length = 64;
-		for (i = 0; i < (int)*length; i+=2) {
-			(OutBuf++)->Channel = 0;
-			(OutBuf++)->Channel = 0;
-		}
-	}*/
+	int len = *length;
 
 	while (buf_full==0) {
 		//if (snd_ticks>=samp_cnt)
@@ -485,13 +452,14 @@ void AudioCallback(void *buffer, unsigned int *length, void *userdata)
 		//else
 		//	break;
 	}
-	//memcpy(OutBuf, playbuf, len);
 
 	for (i = 0; i < len; i++) {
-		(OutBuf++)->Channel = playbuf[i];
-		(OutBuf++)->Channel = playbuf[i];
+		OutBuf->Left = playbuf[i];
+		OutBuf->Right = playbuf[i];
+		OutBuf++;
 	}
 
+	//memcpy(OutBuf, playbuf, len);
 	memset(playbuf, 0, len);
 	buf_full = 0;
 }
@@ -529,26 +497,21 @@ init_gb_snd()
 void
 snd_reset()
 {
-	//pspAudioShutdown();
+	pspAudioShutdown();
 	free(playbuf);
 }
 
 void
 snd_start()
 {
-	desired.freq = 48000;
-	desired.samples = 2048;
-	//desired.format = AUDIO_S16SYS;
-	desired.channels = 1;
-	desired.callback = update_stream;
-	desired.userdata = NULL;
+	samp_rate = FREQ;
+	buf_siz = SAMPLE_COUNT;
 
-	//pspAudioInit(desired.samples, 0);
-	//pspAudioSetChannelCallback(0, AudioCallback, 0);
-
-	samp_rate = desired.freq;
-	buf_siz = desired.size;
 	init_gb_snd();
-	playbuf=(Sint16 *)malloc(desired.size+1);
-	memset(playbuf,0,desired.size);
+
+	playbuf = (Sint16 *)malloc(SAMPLE_COUNT + 1);
+	memset(playbuf, 0, SAMPLE_COUNT);
+
+	pspAudioInit(SAMPLE_COUNT/2, 1);
+	pspAudioSetChannelCallback(0, AudioCallback, 0);
 }

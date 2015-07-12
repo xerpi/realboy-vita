@@ -16,16 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-struct {
-	int freq;
-	Uint16 format;
-	Uint8 channels;
-	Uint8 silence;
-	Uint16 samples;
-	Uint32 size;
-	void (*callback)(void *userdata, Uint8 *stream, int len);
-	void *userdata;
-} desired;
+
 Sint16 *playbuf;
 double freq_tbl[2048];
 double freq_tbl_snd3[2048];

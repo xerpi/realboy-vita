@@ -15,7 +15,7 @@
 #include <malloc.h>
 #include <psp2/kernel/processmgr.h>
 #include <psp2/kernel/threadmgr.h>
-#include <psp2/kernel/memorymgr.h>
+#include <psp2/kernel/sysmem.h>
 #include <psp2/audioout.h>
 
 #define AUDIO_CHANNELS       1

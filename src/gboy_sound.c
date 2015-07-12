@@ -456,30 +456,6 @@ update_stream(void *userdata,Uint8 *stream,int snd_len)
 }
 
 
-void AudioCallback(void *buffer, unsigned int *length, void *userdata)
-{
-	PspMonoSample *OutBuf = (PspMonoSample*)buffer;
-	int i;
-	int len = *length >> 1;
-
-	if(((int)lynx->gAudioBufferPointer >= len)
-		&& (lynx->gAudioBufferPointer != 0) && (!lynx->gSystemHalt) ) {
-		for (i = 0; i < len; i++) {
-			short sample = (short)(((int)lynx->gAudioBuffer[i] << 8) - 32768);
-			(OutBuf++)->Channel = sample;
-			(OutBuf++)->Channel = sample;
-		}
-		lynx->gAudioBufferPointer = 0;
-	} else {
-		*length = 64;
-		for (i = 0; i < (int)*length; i+=2) {
-			(OutBuf++)->Channel = 0;
-			(OutBuf++)->Channel = 0;
-		}
-	}
-}
-
-
 static void
 init_gb_snd()
 {
