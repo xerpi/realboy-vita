@@ -21,8 +21,10 @@
 
 long key_bitmap = 0;
 static SceCtrlData pad;
+static SceCtrlData old_pad;
 
 #define CHANGE_GAME_MASK (PSP2_CTRL_TRIANGLE | PSP2_CTRL_LTRIGGER)
+#define FULLSCREEN_MASK  (PSP2_CTRL_RTRIGGER)
 
 static const struct {
 	int vita, gb;
@@ -46,10 +48,15 @@ int joy_remap(char key_ascii, int key_remap)
 long proc_evts()
 {
 	int i;
+	unsigned int pressed;
 	sceCtrlPeekBufferPositive(0, &pad, 1);
+
+	pressed = pad.buttons & ~old_pad.buttons;
 
 	if ((pad.buttons & CHANGE_GAME_MASK) == CHANGE_GAME_MASK) {
 		return 1;
+	} else if ((pressed & FULLSCREEN_MASK) == FULLSCREEN_MASK) {
+		vid_toggle_fullscreen();
 	}
 
 	key_bitmap = 0;
@@ -60,5 +67,6 @@ long proc_evts()
 		}
 	}
 
+	old_pad = pad;
 	return 0;
 }

@@ -21,6 +21,8 @@
 
 static int pos_x = 0;
 static int pos_y = 0;
+static float fullscreen_scale_y = 0.0f;
+static float fullscreen_scale_x = 0.0f;
 
 static Surface *CreateSurface(int width, int height)
 {
@@ -58,10 +60,7 @@ vid_no_fullscreen()
 int
 vid_is_fullscreen()
 {
-	if (fullscreen == 1)
-		return 1;
-	else
-		return 0;
+	return fullscreen;
 }
 
 void
@@ -105,12 +104,22 @@ vid_frame_update()
 	vita2d_clear_screen();
 
 	if (gboy_mode != SGB || !sgb_mask) {
-		vita2d_draw_texture_part_scale(back->tex,
-			pos_x, pos_y,
-			0, 0,
-			/* w and h are swapped */
-			gb_height, gb_width,
-			scale, scale);
+		if (fullscreen) {
+			vita2d_draw_texture_part_scale(back->tex,
+				0, 0,
+				0, 0,
+				/* w and h are swapped */
+				gb_height, gb_width,
+				fullscreen_scale_x, fullscreen_scale_y);
+
+		} else {
+			vita2d_draw_texture_part_scale(back->tex,
+				pos_x, pos_y,
+				0, 0,
+				/* w and h are swapped */
+				gb_height, gb_width,
+				scale, scale);
+		}
 	}
 
 	vita2d_end_drawing();
@@ -160,6 +169,10 @@ vid_start()
 	}
 
 	back = CreateSurface(160, 146);
+
 	pos_x = SCREEN_W/2 - (gb_height/2)*scale;
 	pos_y = SCREEN_H/2 - (gb_width/2)*scale;
+
+	fullscreen_scale_x = SCREEN_W/(float)gb_height;
+	fullscreen_scale_y = SCREEN_H/(float)gb_width;
 }
