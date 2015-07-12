@@ -25,6 +25,7 @@ static SceCtrlData old_pad;
 
 #define CHANGE_GAME_MASK (PSP2_CTRL_TRIANGLE | PSP2_CTRL_LTRIGGER)
 #define FULLSCREEN_MASK  (PSP2_CTRL_RTRIGGER)
+#define JOY_THRESHOLD    50
 
 static const struct {
 	int vita, gb;
@@ -66,6 +67,12 @@ long proc_evts()
 			key_bitmap |= key_map[i].gb;
 		}
 	}
+
+	if (pad.lx < (128 - JOY_THRESHOLD)) key_bitmap |= LEFT_MASK;
+	else if (pad.lx > (128 + JOY_THRESHOLD)) key_bitmap |= RIGHT_MASK;
+
+	if (pad.ly < (128 - JOY_THRESHOLD)) key_bitmap |= UP_MASK;
+	else if (pad.ly > (128 + JOY_THRESHOLD)) key_bitmap |= DOWN_MASK;
 
 	old_pad = pad;
 	return 0;
