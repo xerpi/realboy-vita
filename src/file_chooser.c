@@ -118,25 +118,16 @@ static file_list_entry *file_list_get_nth_entry(const file_list *list, int n)
 
 static void dir_up(char *path)
 {
-	char *pch;
 	size_t len_in = strlen(path);
-	if (len_in == 1) {
-		strcpy(path, "/");
-		return;
-	}
-	if (path[len_in - 1] == '/') {
-		path[len_in - 1] = '\0';
-	}
-	pch = strrchr(path, '/');
+	char *pch = strrchr(path, '/');
 	if (pch) {
 		size_t s = len_in - (pch - path);
-		memset(pch + 1, '\0', s);
+		memset(pch, '\0', s);
 	}
 	if (strcmp(path, "cache0:/") < 0) {
 		strcpy(path, "cache0:/");
 	}
 }
-
 
 int file_choose(const char *start_path, char *chosen_file, const char *title, const char *supported_ext[])
 {
