@@ -25,7 +25,7 @@ static SceCtrlData old_pad;
 
 #define CHANGE_GAME_MASK (PSP2_CTRL_TRIANGLE | PSP2_CTRL_LTRIGGER)
 #define FULLSCREEN_MASK  (PSP2_CTRL_RTRIGGER)
-#define JOY_THRESHOLD    50
+#define JOY_THRESHOLD    110
 
 static const struct {
 	int vita, gb;
