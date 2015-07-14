@@ -11,6 +11,13 @@
 #include "font.h"
 #include "file_chooser.h"
 
+#define SCREEN_W 960
+#define SCREEN_H 544
+#define LIST_MAX_ONSCREEN ((SCREEN_H-40)/20)
+
+#define min(a,b) ((a) < (b) ? (a) : (b))
+#define max(a,b) ((a) > (b) ? (a) : (b))
+
 #define WHITE RGBA8(255, 255, 255, 255)
 #define GREEN RGBA8(0,   255, 0  , 255)
 
@@ -23,7 +30,8 @@ typedef struct file_list_entry {
 
 typedef struct file_list {
 	file_list_entry *head;
-	unsigned int length;
+	int length;
+	int scroll;
 } file_list;
 
 
@@ -153,13 +161,21 @@ int file_choose(const char *start_path, char *chosen_file, const char *title, co
 
 		if (keys_down & PSP2_CTRL_UP) {
 			selected--;
+			if (selected < list.scroll) {
+				list.scroll--;
+			}
 			if (selected < 0) {
 				selected = list.length - 1;
+				list.scroll = max(0, list.length - LIST_MAX_ONSCREEN);
 			}
 		} else if (keys_down & PSP2_CTRL_DOWN) {
 			selected++;
+			if (selected == list.scroll + LIST_MAX_ONSCREEN) {
+				list.scroll++;
+			}
 			if (selected == list.length) {
 				selected = 0;
+				list.scroll = 0;
 			}
 		}
 
@@ -195,12 +211,12 @@ int file_choose(const char *start_path, char *chosen_file, const char *title, co
 
 		font_draw_stringf(10, 10, WHITE, title);
 
-		entry = list.head;
-		for (i = 0; i < list.length; i++) {
+		entry = file_list_get_nth_entry(&list, list.scroll);
+		for (i = list.scroll; i < min(list.length, list.scroll + LIST_MAX_ONSCREEN); i++) {
 
 			font_draw_stringf(
 				10,
-				40 + i*20,
+				40 + (i - list.scroll)*20,
 				(!entry->is_dir && entry->supported) ? GREEN : WHITE,
 				"%s %s",
 				(selected == i) ? ">" : "",
