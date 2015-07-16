@@ -19,12 +19,14 @@
 #include "gboy.h"
 #include "gboy_events_vita.h"
 
+unsigned char turbo = 0;
 long key_bitmap = 0;
 static SceCtrlData pad;
 static SceCtrlData old_pad;
 
 #define CHANGE_GAME_MASK (PSP2_CTRL_TRIANGLE | PSP2_CTRL_LTRIGGER)
 #define FULLSCREEN_MASK  (PSP2_CTRL_RTRIGGER)
+#define TURBO_MASK       (PSP2_CTRL_LTRIGGER)
 #define JOY_THRESHOLD    110
 
 static const struct {
@@ -58,6 +60,15 @@ long proc_evts()
 		return 1;
 	} else if ((pressed & FULLSCREEN_MASK) == FULLSCREEN_MASK) {
 		vid_toggle_fullscreen();
+	} else if ((pressed & TURBO_MASK) == TURBO_MASK) {
+
+		turbo ^= 1;
+
+		if (turbo)
+			frame_speedup();
+
+		else
+			frame_speeddown();
 	}
 
 	key_bitmap = 0;
