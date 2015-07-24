@@ -12,7 +12,7 @@ OBJS   = src/gboy_cpu.o src/gboy_mem.o src/gboy_sgb.o src/gboy_conf.o \
 	src/globals.o src/gboy_file.o src/main_vita.o src/file_chooser.o \
 	src/font.o src/font_data.o src/utils.o src/vita_audio.o
 
-LIBS = -lvita2d -lm -lc_stub -lSceKernel_stub -lSceDisplay_stub -lSceGxm_stub	\
+LIBS = -lvita2d -lm_stub -lc_stub -lSceKernel_stub -lSceDisplay_stub -lSceGxm_stub	\
 	-lSceAudio_stub -lSceCtrl_stub -lSceRtc_stub
 
 PREFIX  = $(DEVKITARM)/bin/arm-none-eabi
