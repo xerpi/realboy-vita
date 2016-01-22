@@ -23,21 +23,21 @@ long key_bitmap = 0;
 static SceCtrlData pad;
 static SceCtrlData old_pad;
 
-#define CHANGE_GAME_MASK (PSP2_CTRL_TRIANGLE | PSP2_CTRL_LTRIGGER)
-#define FULLSCREEN_MASK  (PSP2_CTRL_RTRIGGER)
+#define CHANGE_GAME_MASK (SCE_CTRL_TRIANGLE | SCE_CTRL_LTRIGGER)
+#define FULLSCREEN_MASK  (SCE_CTRL_RTRIGGER)
 #define JOY_THRESHOLD    110
 
 static const struct {
 	int vita, gb;
 } key_map[] = {
-	{PSP2_CTRL_CROSS,  D_MASK},
-	{PSP2_CTRL_CIRCLE, S_MASK},
-	{PSP2_CTRL_SELECT, A_MASK},
-	{PSP2_CTRL_START,  RET_MASK},
-	{PSP2_CTRL_UP,     UP_MASK},
-	{PSP2_CTRL_DOWN,   DOWN_MASK},
-	{PSP2_CTRL_LEFT,   LEFT_MASK},
-	{PSP2_CTRL_RIGHT,  RIGHT_MASK},
+	{SCE_CTRL_CROSS,  D_MASK},
+	{SCE_CTRL_CIRCLE, S_MASK},
+	{SCE_CTRL_SELECT, A_MASK},
+	{SCE_CTRL_START,  RET_MASK},
+	{SCE_CTRL_UP,     UP_MASK},
+	{SCE_CTRL_DOWN,   DOWN_MASK},
+	{SCE_CTRL_LEFT,   LEFT_MASK},
+	{SCE_CTRL_RIGHT,  RIGHT_MASK},
 };
 
 int joy_remap(char key_ascii, int key_remap)

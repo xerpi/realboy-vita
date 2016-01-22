@@ -94,7 +94,7 @@ static int file_list_build(const char *path, file_list *list, const char *suppor
 		file_list_entry *entry = malloc(sizeof(*entry));
 
 		strcpy(entry->name, dirent.d_name);
-		entry->is_dir = PSP2_S_ISDIR(dirent.d_stat.st_mode);
+		entry->is_dir = SCE_S_ISDIR(dirent.d_stat.st_mode);
 		if (!entry->is_dir) {
 			entry->supported = file_supported(entry->name, supported_ext);
 		}
@@ -156,10 +156,10 @@ int file_choose(const char *start_path, char *chosen_file, const char *title, co
 
 	while (1) {
 		sceCtrlPeekBufferPositive(0, &pad, 1);
-		if (pad.buttons & PSP2_CTRL_SELECT) break;
+		if (pad.buttons & SCE_CTRL_SELECT) break;
 		keys_down = pad.buttons & ~old_pad.buttons;
 
-		if (keys_down & PSP2_CTRL_UP) {
+		if (keys_down & SCE_CTRL_UP) {
 			selected--;
 			if (selected < list.scroll) {
 				list.scroll--;
@@ -168,7 +168,7 @@ int file_choose(const char *start_path, char *chosen_file, const char *title, co
 				selected = list.length - 1;
 				list.scroll = max(0, list.length - LIST_MAX_ONSCREEN);
 			}
-		} else if (keys_down & PSP2_CTRL_DOWN) {
+		} else if (keys_down & SCE_CTRL_DOWN) {
 			selected++;
 			if (selected == list.scroll + LIST_MAX_ONSCREEN) {
 				list.scroll++;
@@ -179,7 +179,7 @@ int file_choose(const char *start_path, char *chosen_file, const char *title, co
 			}
 		}
 
-		if (keys_down & (PSP2_CTRL_CROSS | PSP2_CTRL_START)) {
+		if (keys_down & (SCE_CTRL_CROSS | SCE_CTRL_START)) {
 			file_list_entry *entry = file_list_get_nth_entry(&list, selected);
 
 			if (entry->is_dir) {
@@ -198,7 +198,7 @@ int file_choose(const char *start_path, char *chosen_file, const char *title, co
 				file_list_empty(&list);
 				return 1;
 			}
-		} else if (keys_down & PSP2_CTRL_CIRCLE) {
+		} else if (keys_down & SCE_CTRL_CIRCLE) {
 			dir_up(cur_path);
 			file_list_empty(&list);
 			file_list_build(cur_path, &list, supported_ext);
