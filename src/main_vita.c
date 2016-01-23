@@ -38,12 +38,15 @@ int main()
 	while (1) {
 		strcpy(current_dir, "cache0:/VitaDefilerClient/Documents");
 
-		file_choose(
+		int ret = file_choose(
 			current_dir,
 			rom_path,
 			"Choose a GB/GB Color/Super GB ROM:",
 			supported_ext
 			);
+
+		if (ret == -1)
+			break;
 
 		if ( (rom_file = fopen(rom_path, "r")) == NULL) {
 			printf("\nError opening %s\n", rom_path);

@@ -11,6 +11,8 @@
 #include "font.h"
 #include "file_chooser.h"
 
+#define GAME_EXIT_COMBO (SCE_CTRL_SELECT)
+
 #define SCREEN_W 960
 #define SCREEN_H 544
 #define LIST_MAX_ONSCREEN ((SCREEN_H-40)/20)
@@ -156,8 +158,10 @@ int file_choose(const char *start_path, char *chosen_file, const char *title, co
 
 	while (1) {
 		sceCtrlPeekBufferPositive(0, &pad, 1);
-		if (pad.buttons & SCE_CTRL_SELECT) break;
 		keys_down = pad.buttons & ~old_pad.buttons;
+
+		if (pad.buttons & GAME_EXIT_COMBO)
+			return -1;
 
 		if (keys_down & SCE_CTRL_UP) {
 			selected--;
