@@ -188,8 +188,8 @@ void pspAudioShutdown()
   {
     if (AudioStatus[i].ThreadHandle != -1)
     {
-      //sceKernelWaitThreadEnd(AudioStatus[i].threadhandle,NULL);
-      sceKernelDeleteThread(AudioStatus[i].ThreadHandle);
+      sceKernelWaitThreadEnd(AudioStatus[i].ThreadHandle, NULL, NULL);
+      //sceKernelDeleteThread(AudioStatus[i].ThreadHandle);
     }
 
     AudioStatus[i].ThreadHandle = -1;
@@ -253,7 +253,7 @@ static int AudioChannelThread(int args, void *argp)
     bufidx = (bufidx ? 0 : 1);
   }
 
-  sceKernelExitThread(0);
+  //sceKernelExitThread(0);
   return 0;
 }
 

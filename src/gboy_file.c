@@ -77,7 +77,7 @@ create_dir(char *dir_name, Uint32 mode_mask)
 #ifdef VITA
 	char path[1024];
 	sprintf(path, "%s/%s", current_dir, dir_name);
-	if ( (sceIoMkdir(path, (mode_t)mode_mask)) == -1)
+	if ( (sceIoMkdir(path, 0777)) < 0)
 		perror("Create Directory: ");
 #else
 	if ( (mkdir(dir_name, (mode_t)mode_mask)) == -1)

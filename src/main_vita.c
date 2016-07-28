@@ -20,8 +20,6 @@
 #include "main.h"
 #include "file_chooser.h"
 
-PSP2_MODULE_INFO(0, 0, "realboy");
-
 static const char *supported_ext[] = {
 	"gb", "gbc", "sgb", NULL
 };
@@ -32,11 +30,13 @@ int main()
 
 	printf("\nRealBoy %s\n", "0.2.2");
 
+	sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
+
 	vita2d_init();
 	vita2d_set_clear_color(RGBA8(0x40, 0x40, 0x40, 0xFF));
 
 	while (1) {
-		strcpy(current_dir, "cache0:/VitaDefilerClient/Documents");
+		strcpy(current_dir, "ux0:/cache");
 
 		int ret = file_choose(
 			current_dir,
