@@ -54,7 +54,7 @@ int chdir(const char *path)
 		const char *new_path = dirname(current_dir);
 		strcpy(current_dir, new_path);
 	} else {
-		if (strstr(path, "cache0:/")) {
+		if (strstr(path, "ux0:")) {
 			strcpy(current_dir, path);
 		} else {
 			char new_path[1024];
@@ -68,7 +68,7 @@ int chdir(const char *path)
 char *getenv(const char *name)
 {
 	if (strcmp(name, "HOME") == 0) {
-		return "cache0:/VitaDefilerClient/Documents";
+		return "ux0:/data";
 	}
 	return NULL;
 }

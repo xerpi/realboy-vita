@@ -74,8 +74,8 @@ int pspAudioInit(int sample_count, int stereo)
     }
   }
 
-  DirectHandle = sceAudioOutOpenPort(PSP2_AUDIO_OUT_PORT_TYPE_MAIN, DEFAULT_SAMPLE_COUNT,
-    48000, (Stereo) ? PSP2_AUDIO_OUT_MODE_STEREO : PSP2_AUDIO_OUT_MODE_MONO);
+  DirectHandle = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_MAIN, DEFAULT_SAMPLE_COUNT,
+    48000, (Stereo) ? SCE_AUDIO_OUT_MODE_STEREO : SCE_AUDIO_OUT_MODE_MONO);
 
   /* No callback */
   if ((SampleCount = sample_count) == 0)
@@ -102,8 +102,8 @@ int pspAudioInit(int sample_count, int stereo)
   /* Initialize channels */
   for (i = 0, failed = 0; i < AUDIO_CHANNELS; i++)
   {
-    AudioStatus[i].Handle = sceAudioOutOpenPort(PSP2_AUDIO_OUT_PORT_TYPE_MAIN, SampleCount,
-      48000, (Stereo) ? PSP2_AUDIO_OUT_MODE_STEREO : PSP2_AUDIO_OUT_MODE_MONO);
+    AudioStatus[i].Handle = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_MAIN, SampleCount,
+      48000, (Stereo) ? SCE_AUDIO_OUT_MODE_STEREO : SCE_AUDIO_OUT_MODE_MONO);
 
     if (AudioStatus[i].Handle < 0)
     {
@@ -188,8 +188,8 @@ void pspAudioShutdown()
   {
     if (AudioStatus[i].ThreadHandle != -1)
     {
-      //sceKernelWaitThreadEnd(AudioStatus[i].threadhandle,NULL);
-      sceKernelDeleteThread(AudioStatus[i].ThreadHandle);
+      sceKernelWaitThreadEnd(AudioStatus[i].ThreadHandle, NULL, NULL);
+      //sceKernelDeleteThread(AudioStatus[i].ThreadHandle);
     }
 
     AudioStatus[i].ThreadHandle = -1;
@@ -253,7 +253,7 @@ static int AudioChannelThread(int args, void *argp)
     bufidx = (bufidx ? 0 : 1);
   }
 
-  sceKernelExitThread(0);
+  //sceKernelExitThread(0);
   return 0;
 }
 
@@ -263,7 +263,7 @@ int pspAudioOutputBlocking(void *buf, unsigned int length)
 
   int vols[2]={PSP_AUDIO_MAX_VOLUME,PSP_AUDIO_MAX_VOLUME};
   sceAudioOutSetConfig(DirectHandle, length, -1, -1);
-  sceAudioOutSetVolume(DirectHandle,PSP2_AUDIO_VOLUME_FLAG_L_CH|PSP2_AUDIO_VOLUME_FLAG_R_CH,vols);
+  sceAudioOutSetVolume(DirectHandle,SCE_AUDIO_VOLUME_FLAG_L_CH|SCE_AUDIO_VOLUME_FLAG_R_CH,vols);
   return sceAudioOutOutput(DirectHandle, buf);
 }
 
@@ -273,7 +273,7 @@ int pspAudioOutput(void *buf, unsigned int length)
 
   int vols[2]={PSP_AUDIO_MAX_VOLUME,PSP_AUDIO_MAX_VOLUME};
   sceAudioOutSetConfig(DirectHandle, length, -1, -1);
-  sceAudioOutSetVolume(DirectHandle,PSP2_AUDIO_VOLUME_FLAG_L_CH|PSP2_AUDIO_VOLUME_FLAG_R_CH,vols);
+  sceAudioOutSetVolume(DirectHandle,SCE_AUDIO_VOLUME_FLAG_L_CH|SCE_AUDIO_VOLUME_FLAG_R_CH,vols);
   return sceAudioOutOutput(DirectHandle, buf);
 }
 
@@ -287,7 +287,7 @@ static int OutputBlocking(unsigned int channel,
 
   int vols[2]={vol1,vol2};
   sceAudioOutSetConfig(AudioStatus[channel].Handle, length, -1, -1);
-  sceAudioOutSetVolume(AudioStatus[channel].Handle,PSP2_AUDIO_VOLUME_FLAG_L_CH|PSP2_AUDIO_VOLUME_FLAG_R_CH,vols);
+  sceAudioOutSetVolume(AudioStatus[channel].Handle,SCE_AUDIO_VOLUME_FLAG_L_CH|SCE_AUDIO_VOLUME_FLAG_R_CH,vols);
   return sceAudioOutOutput(AudioStatus[channel].Handle,buf);
 }
 

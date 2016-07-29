@@ -11,6 +11,8 @@
 #include "font.h"
 #include "file_chooser.h"
 
+#define GAME_EXIT_COMBO (SCE_CTRL_SELECT)
+
 #define SCREEN_W 960
 #define SCREEN_H 544
 #define LIST_MAX_ONSCREEN ((SCREEN_H-40)/20)
@@ -63,7 +65,12 @@ static void file_list_empty(file_list *list)
 static int file_supported(const char *filename, const char *supported_ext[])
 {
 	int i;
-	const char *ext = strrchr(filename, '.');
+	const char *ext;
+
+	if (!supported_ext)
+		return 1;
+
+	ext = strrchr(filename, '.');
 	if (ext) {
 		i = 0;
 		while (supported_ext[i]) {
@@ -94,7 +101,7 @@ static int file_list_build(const char *path, file_list *list, const char *suppor
 		file_list_entry *entry = malloc(sizeof(*entry));
 
 		strcpy(entry->name, dirent.d_name);
-		entry->is_dir = PSP2_S_ISDIR(dirent.d_stat.st_mode);
+		entry->is_dir = SCE_S_ISDIR(dirent.d_stat.st_mode);
 		if (!entry->is_dir) {
 			entry->supported = file_supported(entry->name, supported_ext);
 		}
@@ -132,8 +139,8 @@ static void dir_up(char *path)
 		size_t s = len_in - (pch - path);
 		memset(pch, '\0', s);
 	}
-	if (strcmp(path, "cache0:/") < 0) {
-		strcpy(path, "cache0:/");
+	if (strcmp(path, "ux0:") < 0) {
+		strcpy(path, "ux0:");
 	}
 }
 
@@ -156,10 +163,12 @@ int file_choose(const char *start_path, char *chosen_file, const char *title, co
 
 	while (1) {
 		sceCtrlPeekBufferPositive(0, &pad, 1);
-		if (pad.buttons & PSP2_CTRL_SELECT) break;
 		keys_down = pad.buttons & ~old_pad.buttons;
 
-		if (keys_down & PSP2_CTRL_UP) {
+		if (pad.buttons & GAME_EXIT_COMBO)
+			return -1;
+
+		if (keys_down & SCE_CTRL_UP) {
 			selected--;
 			if (selected < list.scroll) {
 				list.scroll--;
@@ -168,7 +177,7 @@ int file_choose(const char *start_path, char *chosen_file, const char *title, co
 				selected = list.length - 1;
 				list.scroll = max(0, list.length - LIST_MAX_ONSCREEN);
 			}
-		} else if (keys_down & PSP2_CTRL_DOWN) {
+		} else if (keys_down & SCE_CTRL_DOWN) {
 			selected++;
 			if (selected == list.scroll + LIST_MAX_ONSCREEN) {
 				list.scroll++;
@@ -179,7 +188,7 @@ int file_choose(const char *start_path, char *chosen_file, const char *title, co
 			}
 		}
 
-		if (keys_down & (PSP2_CTRL_CROSS | PSP2_CTRL_START)) {
+		if (keys_down & (SCE_CTRL_CROSS | SCE_CTRL_START)) {
 			file_list_entry *entry = file_list_get_nth_entry(&list, selected);
 
 			if (entry->is_dir) {
@@ -198,7 +207,7 @@ int file_choose(const char *start_path, char *chosen_file, const char *title, co
 				file_list_empty(&list);
 				return 1;
 			}
-		} else if (keys_down & PSP2_CTRL_CIRCLE) {
+		} else if (keys_down & SCE_CTRL_CIRCLE) {
 			dir_up(cur_path);
 			file_list_empty(&list);
 			file_list_build(cur_path, &list, supported_ext);

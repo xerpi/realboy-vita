@@ -1,10 +1,6 @@
-#
-# Copyright (c) 2015 Sergi Granell (xerpi)
-# based on Cirne's vita-toolchain test Makefile
-#
-
-TARGET = realboy
-OBJS   = src/gboy_cpu.o src/gboy_mem.o src/gboy_sgb.o src/gboy_conf.o \
+TITLE_ID = XERP00003
+TARGET   = realboy
+OBJS     = src/gboy_cpu.o src/gboy_mem.o src/gboy_sgb.o src/gboy_conf.o \
 	src/gboy_events_vita.o src/gboy_frame.o src/gboy_vm.o \
 	src/gboy_ioctrl.o src/gboy_lcd.o src/gboy_mbc1.o \
 	src/gboy_mbc2.o src/gboy_mbc3.o src/gboy_mbc5.o src/gboy_mbc.o \
@@ -12,26 +8,44 @@ OBJS   = src/gboy_cpu.o src/gboy_mem.o src/gboy_sgb.o src/gboy_conf.o \
 	src/globals.o src/gboy_file.o src/main_vita.o src/file_chooser.o \
 	src/font.o src/font_data.o src/utils.o src/vita_audio.o
 
-LIBS = -lvita2d -lm_stub -lc_stub -lSceKernel_stub -lSceDisplay_stub -lSceGxm_stub	\
-	-lSceAudio_stub -lSceCtrl_stub -lSceRtc_stub
+LIBS = -lvita2d -lSceKernel_stub -lSceDisplay_stub -lSceCommonDialog_stub \
+	-lSceGxm_stub -lSceSysmodule_stub -lSceCtrl_stub -lScePgf_stub \
+	-lSceRtc_stub -lSceAudio_stub -lpng -ljpeg -lfreetype -lz -lm -lc
 
-PREFIX  = $(DEVKITARM)/bin/arm-none-eabi
+PREFIX  = arm-vita-eabi
 CC      = $(PREFIX)-gcc
-CFLAGS  = -Wall -O2 -specs=psp2.specs -DVITA
-CFLAGS  += -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable -Wno-implicit-function-declaration -Wno-unused-label
+CFLAGS  = -Wl,-q -Wall -O3 -DVITA
+CFLAGS  += -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable \
+	-Wno-implicit-function-declaration -Wno-unused-label
 ASFLAGS = $(CFLAGS)
 
-all: $(TARGET)_fixup.elf
+all: $(TARGET).vpk
 
-%_fixup.elf: %.elf
-	psp2-fixup -q -S $< $@
+%.vpk: eboot.bin param.sfo
+	vita-pack-vpk -s param.sfo -b eboot.bin \
+		-a icon0.png=sce_sys/icon0.png \
+		$@
+
+param.sfo:
+	vita-mksfoex -s TITLE_ID=$(TITLE_ID) "$(TARGET)" $@
+
+eboot.bin: $(TARGET).velf
+	vita-make-fself $< $@
+
+%.velf: %.elf
+	vita-elf-create $< $@
 
 $(TARGET).elf: $(OBJS)
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
 clean:
-	@rm -rf $(TARGET)_fixup.elf $(TARGET).elf $(OBJS)
+	@rm -rf $(TARGET).vpk $(TARGET).velf $(TARGET).elf $(OBJS) \
+		eboot.bin param.sfo
 
-copy: $(TARGET)_fixup.elf
-	@cp $(TARGET)_fixup.elf ~/shared/vitasample.elf
-	@echo "Copied!"
+vpksend: $(TARGET).vpk
+	curl -T $(TARGET).vpk ftp://$(PSVITAIP):1337/ux0:/
+	@echo "Sent."
+
+send: eboot.bin
+	curl -T eboot.bin ftp://$(PSVITAIP):1337/ux0:/app/$(TITLE_ID)/
+	@echo "Sent."
