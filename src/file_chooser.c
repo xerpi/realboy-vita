@@ -65,7 +65,12 @@ static void file_list_empty(file_list *list)
 static int file_supported(const char *filename, const char *supported_ext[])
 {
 	int i;
-	const char *ext = strrchr(filename, '.');
+	const char *ext;
+
+	if (!supported_ext)
+		return 1;
+
+	ext = strrchr(filename, '.');
 	if (ext) {
 		i = 0;
 		while (supported_ext[i]) {

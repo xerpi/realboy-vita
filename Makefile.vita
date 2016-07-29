@@ -21,9 +21,13 @@ ASFLAGS = $(CFLAGS)
 
 all: $(TARGET).vpk
 
-%.vpk: eboot.bin
-	vita-mksfoex -s TITLE_ID=$(TITLE_ID) "$(TARGET)" param.sfo
-	vita-pack-vpk -s param.sfo -b eboot.bin $@
+%.vpk: eboot.bin param.sfo
+	vita-pack-vpk -s param.sfo -b eboot.bin \
+		-a icon0.png=sce_sys/icon0.png \
+		$@
+
+param.sfo:
+	vita-mksfoex -s TITLE_ID=$(TITLE_ID) "$(TARGET)" $@
 
 eboot.bin: $(TARGET).velf
 	vita-make-fself $< $@
