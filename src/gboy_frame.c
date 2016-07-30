@@ -28,7 +28,7 @@ frame_speeddown()
 void
 frame_speedup()
 {
-	u_frm = 1000000/10000;
+	u_frm = 1000000/500000;
 }
 
 void
