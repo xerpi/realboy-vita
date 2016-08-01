@@ -33,7 +33,7 @@ int main()
 	sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
 
 	vita2d_init();
-	vita2d_set_clear_color(RGBA8(0x40, 0x40, 0x40, 0xFF));
+	vita2d_set_clear_color(RGBA8(0, 0, 0, 0xFF));
 
 	while (1) {
 		strcpy(current_dir, "ux0:");
